@@ -15,5 +15,9 @@ python search_youtube.py data/discogs/one_title_per_clique.json data/youtube/
 ```
 ## Filtering
 TBA
+
 ## Information Extraction with LLM
+TBA
+
+## Matching Extracted Data
 TBA

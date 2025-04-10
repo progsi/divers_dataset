@@ -1,5 +1,9 @@
 # Discogs-VI-2
-The 2nd Version of the Discogs-VI-YT dataset. Only the musical works are based on Discogs. However, the versions are crawled from YouTube and are not necessarily listed on any platform based on manual collection (eg. Discogs, SecondHandSongs, etc.).
+The 2nd Version of the [Discogs-VI-YT dataset](https://github.com/MTG/discogs-vi-dataset/tree/main). Only the musical works are based on Discogs. However, the versions are crawled from YouTube and are not necessarily listed on any platform based on manual collection (eg. Discogs, SecondHandSongs, etc.). Thus, this should overcome the problem of diversity in existing datasets, which are usually based on manual collection and contain rather official versions than you might find in the wild (e.g., instrumental cover versions, acapella) and might even contain boundary cases (e.g., reaction/analysis videos, tutorials).
+
+# Requirements
+The environment in `env.yaml`. Install with `conda env create -f env.yaml`.
+Also, you need the file `Discogs-VI-YT-20240701.jsonl` or maybe a newer version on that. More info in the [repo of version 1](https://github.com/MTG/discogs-vi-dataset/tree/main).
 
 # Dataset Creation
 

@@ -1,5 +1,4 @@
-data/discogs/*
-data/youtube/*
+data/*
 playground.ipynb
 *__pycache__
 *.ipynb_checkpoints

@@ -14,7 +14,7 @@ python search_youtube.py data/discogs/one_title_per_clique.json data/youtube/
 ```
 ## Filtering
 ### Exclude dataset matches
-We want to exclude videos which are also contained as versions in either *Discogs-VI-YT*, [*SHS100K2*](https://github.com/NovaFrost/SHS100K2) or [*Da-Tacos*](https://github.com/MTG/da-tacos). Please note that we have our own CSV files for this process which we can provide on request. Given these files, we run:
+We exclude videos which are also contained as versions in any of the datasets [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset), [*SHS100K2*](https://github.com/NovaFrost/SHS100K2) or [*Da-Tacos*](https://github.com/MTG/da-tacos). Please note that we have our own CSV files for this process which we can provide upon request. Given these files, we run:
 
 ```
 python filter_youtube_ids.py data/youtube data/filter/youtube_id --discogs_path data/discogs/Discogs-VI-YT-20240701-light.json --shs_csv_path ../data/shs100k2.csv --datacos_csv_path ../data/da-tacos.csv

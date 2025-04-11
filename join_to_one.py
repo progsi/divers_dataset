@@ -25,7 +25,7 @@ def process_crawl(input_dir, keep_ids):
     for filepath in glob.glob(os.path.join(input_dir, '*.jsonl')):
         query_name = os.path.basename(filepath).split('.')[0]
         with open(filepath, 'r') as f:
-            for line in f:
+            for index, line in enumerate(f):  # Use enumerate to get the index of the line
                 try:
                     obj = json.loads(line)
                     yt_id = obj.get("id")
@@ -37,14 +37,14 @@ def process_crawl(input_dir, keep_ids):
                         seen_ids.add(yt_id)
 
                     if yt_id not in id_to_queries:
-                        id_to_queries[yt_id] = set()
-                    id_to_queries[yt_id].add(query_name)
+                        id_to_queries[yt_id] = {}
+
+                    # Store the query_name as the key and the line index as the value
+                    id_to_queries[yt_id][query_name] = index
 
                 except json.JSONDecodeError:
                     continue
 
-    # Convert sets to lists for JSON serialization
-    id_to_queries = {k: list(v) for k, v in id_to_queries.items()}
     return id_to_metadata, id_to_queries
 
 def main():
@@ -62,10 +62,12 @@ def main():
     metadata_path = os.path.join(args.output_dir, 'metadata_filtered.jsonl')
     queries_path = os.path.join(args.output_dir, 'queries_filtered.json')
 
+    # Write filtered metadata to a .jsonl file
     with open(metadata_path, 'w') as meta_file:
         for obj in id_to_metadata.values():
             meta_file.write(json.dumps(obj) + '\n')
 
+    # Write the query mapping to a JSON file
     with open(queries_path, 'w') as query_file:
         json.dump(id_to_queries, query_file, indent=2)
 

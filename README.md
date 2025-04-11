@@ -2,7 +2,6 @@
 The 2nd Version of the [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset) dataset. Only the musical works are based on *Discogs*. However, the versions are crawled from YouTube and are not necessarily listed on any platform based on manual collection (eg. *Discogs*, *SecondHandSongs*, etc.).
 
 # Dataset Creation
-
 ## Extract titles from Discogs-VI-YT 
 To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
@@ -25,6 +24,11 @@ We exclude videos longer than 20 minutes (like in *Discogs-VI-YT*) and under 10 
 ```
 python filter_duration.py data/youtube data/filter/duration --min 10 --max 1200
 ```
+### Obtain one `jsonl` file 
+```
+python join_to_one.py data/youtube data --filter_dir data/filter
+```
+This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not loose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
 
 ## Information Extraction with LLM
 TBA

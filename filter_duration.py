@@ -22,6 +22,7 @@ def process_durations(input_dir, min_sec, max_sec):
     short_ids = set()
     long_ids = set()
     keep_ids = set()
+    error_ids = set()
 
     for filepath in glob.glob(os.path.join(input_dir, "*.jsonl")):
         with open(filepath, 'r') as f:
@@ -30,9 +31,17 @@ def process_durations(input_dir, min_sec, max_sec):
                     obj = json.loads(line)
                     yt_id = obj.get("id")
                     duration_str = obj.get("duration")
-                    duration_sec = parse_duration(duration_str)
 
-                    if yt_id is None or duration_sec is None:
+                    if yt_id is None:
+                        continue
+
+                    if duration_str is None:
+                        error_ids.add(yt_id)
+                        continue
+
+                    duration_sec = parse_duration(duration_str)
+                    if duration_sec is None:
+                        error_ids.add(yt_id)
                         continue
 
                     if duration_sec < min_sec:
@@ -45,7 +54,7 @@ def process_durations(input_dir, min_sec, max_sec):
                 except json.JSONDecodeError:
                     continue
 
-    return list(short_ids), list(long_ids), list(keep_ids)
+    return list(short_ids), list(long_ids), list(keep_ids), list(error_ids)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -57,11 +66,12 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    short_ids, long_ids, keep_ids = process_durations(args.input_dir, args.min, args.max)
+    short_ids, long_ids, keep_ids, error_ids = process_durations(args.input_dir, args.min, args.max)
 
     exclude = {
         "SHORT": short_ids,
-        "LONG": long_ids
+        "LONG": long_ids,
+        "ERROR": error_ids
     }
 
     with open(os.path.join(args.output_dir, 'exclude.json'), 'w') as f:
@@ -73,6 +83,7 @@ def main():
 
     print(f"Excluded SHORT: {len(short_ids)}")
     print(f"Excluded LONG: {len(long_ids)}")
+    print(f"Excluded ERROR (invalid or missing duration): {len(error_ids)}")
     print(f"Total kept: {len(keep_ids)}")
 
 if __name__ == '__main__':

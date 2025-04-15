@@ -24,6 +24,10 @@ We exclude videos longer than 20 minutes (like in *Discogs-VI-YT*) and under 10 
 ```
 python filter_duration.py data/youtube data/filter/duration --min 10 --max 1200
 ```
+### Filter by result index
+```
+python filter_rank.py data/youtube data/filter/rank --max_index 100
+```
 ### Obtain one `jsonl` file 
 ```
 python join_to_one.py data/youtube data --filter_dir data/filter

@@ -37,7 +37,8 @@ This creates the files `metadata_filtered.jsonl` where only the kept videos afte
 For sets of videos with rather similar metadata (video title, description and duration), we only keep one random video.
 ### Filter by fuzzy matching
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
-
+```python fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
+```
 ## Information Extraction with LLM
 TBA
 

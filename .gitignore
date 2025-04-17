@@ -3,4 +3,6 @@ playground.ipynb
 *__pycache__
 *.ipynb_checkpoints
 .vscode
-*.ipynb
+llamaindex.ipynb
+nuextract.ipynb
+outlines.ipynb

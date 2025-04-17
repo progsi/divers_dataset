@@ -33,12 +33,13 @@ python filter_rank.py data/youtube data/filter/rank --max_index 100
 python join_to_one.py data/youtube data --filter_dir data/filter
 ```
 This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not loose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
-### Diversity
-For sets of videos with rather similar metadata (video title, description and duration), we only keep one random video.
 ### Filter by fuzzy matching
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
-```python fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
 ```
+python fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
+```
+### Diversity
+TBA
 ## Information Extraction with LLM
 TBA
 

@@ -36,7 +36,7 @@ This creates the files `metadata_filtered.jsonl` where only the kept videos afte
 ### Filter by fuzzy matching
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
 ```
-python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
+python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched/full.csv
 ```
 ### Diversity
 TBA

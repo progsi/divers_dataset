@@ -5,38 +5,38 @@ The 2nd Version of the [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-datas
 ## Extract titles from Discogs-VI-YT 
 To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
-python get_unique_titles.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json
+python preprocessing/get_unique_titles.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json
 ```
 ## Search on YouTube
 We now search for up to 500 results per clique, using the text query (song title).
 ```
-python search_youtube.py data/discogs/one_title_per_clique.json data/youtube/ 
+python preprocessing/search_youtube.py data/discogs/one_title_per_clique.json data/youtube/ 
 ```
 ## Filtering
 ### Exclude dataset matches
 We exclude videos which are also contained as versions in any of the datasets [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset), [*SHS100K2*](https://github.com/NovaFrost/SHS100K2) or [*Da-Tacos*](https://github.com/MTG/da-tacos). Please note that we have our own CSV files for this process which we can provide upon request. Given these files, we run:
 
 ```
-python filter_youtube_ids.py data/youtube data/filter/youtube_id --discogs_path data/discogs/Discogs-VI-YT-20240701-light.json --shs_csv_path ../data/shs100k2.csv --datacos_csv_path ../data/da-tacos.csv
+python preprocessing/filter_youtube_ids.py data/youtube data/filter/youtube_id --discogs_path data/discogs/Discogs-VI-YT-20240701-light.json --shs_csv_path ../data/shs100k2.csv --datacos_csv_path ../data/da-tacos.csv
 ```
 ### Exclude videos by duration
 We exclude videos longer than 20 minutes (like in *Discogs-VI-YT*) and under 10 seconds.
 ```
-python filter_duration.py data/youtube data/filter/duration --min 10 --max 1200
+python preprocessing/filter_duration.py data/youtube data/filter/duration --min 10 --max 1200
 ```
 ### Filter by result index
 ```
-python filter_rank.py data/youtube data/filter/rank --max_index 100
+python preprocessing/filter_rank.py data/youtube data/filter/rank --max_index 100
 ```
 ### Obtain one `jsonl` file 
 ```
-python join_to_one.py data/youtube data --filter_dir data/filter
+python preprocessing/join_to_one.py data/youtube data --filter_dir data/filter
 ```
 This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not loose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
 ### Filter by fuzzy matching
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
 ```
-python fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
+python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched.csv
 ```
 ### Diversity
 TBA

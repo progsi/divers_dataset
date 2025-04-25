@@ -38,10 +38,11 @@ This step aims detecting videos which are likely versions of the works in the se
 ```
 python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched/full.csv
 ```
-### Diversity
-TBA
-## Information Extraction with LLM
-TBA
-
-## Matching Extracted Data
-TBA
+#### Analysis
+From the output file in `data/matched/full.csv`, we analyze the matches with regards to pairs of attributes from *Discogs* and *YouTube* which are matched in the notebook `matching_analysis.ipynb`. Additionally, we split the data into four groups after thresholding the similarity at 80%:
+- *both*: *title* and *artist* are matched
+- *only_title*: the cleaned title from *Discogs-VI-YT* matches
+- *only_artist*: any artist is matched using the list of arists from *Discogs*
+- *none*
+For the whole set, this information is written to `data/matched/filtered_types.csv`. We additionally create a sample of 100 videos per group to check manually.
+We annotate in here: https://docs.google.com/spreadsheets/d/1QVuEC9CX3dgF6fzI7wPwimmRty1gJO3E_9BTiRwyREE/edit?gid=590633762#gid=590633762

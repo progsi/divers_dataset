@@ -6,6 +6,8 @@ from tqdm import tqdm
 
 from rapidfuzz import process, fuzz
 
+from string_processor import StringProcessor
+
 TITLES_KEY = "track_title_cleaned"
 ARTISTS_KEY = "release_artist_names"
 
@@ -113,7 +115,7 @@ def main(discogs_path, unique_titles_path, output, max_index):
     print(f"Fuzzy matching with {fuzz.token_ratio.__name__}...")    
     result = process.cpdist(df.youtube_text, df.discogs_text, 
                scorer=fuzz.token_ratio, 
-               processor=lambda s: s.strip().lower(),
+               processor=StringProcessor(),
                workers=-1,)
     df["Score"] = result
     print("Done.")

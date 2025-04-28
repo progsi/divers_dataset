@@ -34,6 +34,7 @@ python preprocessing/join_to_one.py data/youtube data --filter_dir data/filter
 ```
 This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not loose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
 ### Filter by fuzzy matching
+#### Method
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
 We also apply some pre-processing steps (see `string_processor.py`) which were also used to generate [MusicUGC-NER](https://github.com/progsi/YTUnCoverLLM/tree/main?tab=readme-ov-file).
 ```
@@ -46,4 +47,10 @@ From the output file in `data/matched/full.csv`, we analyze the matches with reg
 - *only_artist*: any artist is matched using the list of arists from *Discogs*
 - *none*
 For the whole set, this information is written to `data/matched/filtered_types.csv`. We additionally create a sample of 100 videos per group to check manually.
-We annotate in here: https://docs.google.com/spreadsheets/d/1QVuEC9CX3dgF6fzI7wPwimmRty1gJO3E_9BTiRwyREE/edit?gid=590633762#gid=590633762
+
+Manually checking the sample, we observed that *both* contains references to the work of interest in almost all of the cases (>95%). Additionally, *none* and *only_title* mostly contain references to other works and *only_artist* mostly contain references of works from the same artist related to the work of interest. 
+
+**Based on our analysis we decide to only keep the *both* subset, since it is already large (1.4M videos) and the matching quality is rather high.**
+
+## Join with Discogs-VI-YT
+

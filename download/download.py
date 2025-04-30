@@ -64,11 +64,10 @@ def download_audio_and_metadata(yt_id, root_dir, force_failed=False):
     url = get_youtube_url(yt_id)
 
     log_dir = os.path.join(root_dir, "logs")
-    audio_dir = os.path.join(root_dir, "audio")
 
     prefix = yt_id[:2]
-    output_mp4 = os.path.join(audio_dir, prefix, f"{yt_id}.mp4")
-    output_meta = os.path.join(audio_dir, prefix, f"{yt_id}.meta")
+    output_mp4 = os.path.join(root_dir, prefix, f"{yt_id}.mp4")
+    output_meta = os.path.join(root_dir, prefix, f"{yt_id}.meta")
     output_log = os.path.join(log_dir, prefix, f"{yt_id}.log")
 
     if os.path.exists(output_mp4) and os.path.exists(output_meta):

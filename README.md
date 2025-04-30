@@ -56,4 +56,7 @@ Manually checking the sample, we observed that *both* contains references to the
 In `make_datasets.ipynb` we make two subsets. First, the full *both* dataset. We further create another filtered version were we filter some indicators of official music videos (e.g. *remastered* etc.). 
 The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
 
+# Analysis
+
+In `content_analysis.ipynb` we analyze: duration, n-grams etc.
 

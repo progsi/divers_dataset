@@ -2,7 +2,9 @@ data/*
 playground.ipynb
 *__pycache__
 *.ipynb_checkpoints
+*.tar.gz
 .vscode
 llamaindex.ipynb
 nuextract.ipynb
 outlines.ipynb
+.gitignore

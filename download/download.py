@@ -11,7 +11,7 @@ import csv
 import argparse
 import re
 import yt_dlp as youtube_dl
-from download.proxy import get_random_proxy, log_blocked_servers
+from proxy import get_random_proxy, log_blocked_servers
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 

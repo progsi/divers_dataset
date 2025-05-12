@@ -56,7 +56,7 @@ YDL_OPTS = {
     #     'Connection': 'keep-alive',
     # }
 }
-def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy=False, max_retries=5):
+def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy=False, max_retries=25):
     url = get_youtube_url(yt_id)
 
     log_dir = os.path.join(root_dir, "logs")

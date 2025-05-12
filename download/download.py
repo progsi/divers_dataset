@@ -11,6 +11,7 @@ import csv
 import argparse
 import re
 import yt_dlp as youtube_dl
+from download.proxy import get_random_proxy, log_blocked_servers
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -55,16 +56,10 @@ YDL_OPTS = {
     #     'Connection': 'keep-alive',
     # }
 }
-
-
-def download_audio_and_metadata(yt_id, root_dir, force_failed=False):
-    # See youtube_dl options here:
-    # https://github.com/ytdl-org/youtube-dl/blob/master/README.md#embedding-youtube-dl
-
+def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy=False, max_retries=5):
     url = get_youtube_url(yt_id)
 
     log_dir = os.path.join(root_dir, "logs")
-
     prefix = yt_id[:2]
     output_mp4 = os.path.join(root_dir, prefix, f"{yt_id}.mp4")
     output_meta = os.path.join(root_dir, prefix, f"{yt_id}.meta")
@@ -75,28 +70,46 @@ def download_audio_and_metadata(yt_id, root_dir, force_failed=False):
     elif os.path.exists(output_log) and not force_failed:
         status = "download previously failed"
     else:
-        # Output filename.
         YDL_OPTS["outtmpl"] = output_mp4
-        with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
-            try:
-                ydl.download([url])
-                meta = ydl.extract_info(url, download=False)
-                meta = ydl.sanitize_info(meta)
-                with open(output_meta, "w", encoding="utf-8") as out_f:
-                    out_f.write(json.dumps(meta, ensure_ascii=False) + "\n")
-                status = "downloaded"
+        attempt = 0
+        success = False
 
-            # TODO TypeError exception should not happen, this is an upstream bug in youtube-dl.
-            except (youtube_dl.utils.DownloadError, TypeError) as e:
-                status = escape_ansi(str(e))
-                if "HTTP Error 429: Too Many Requests" not in status:
-                    os.makedirs(os.path.dirname(output_log), exist_ok=True)
-                    with open(output_log, "w") as f:
-                        f.write(
-                            "\t".join((yt_id, output_mp4, output_meta, status)) + "\n"
-                        )
-                status = "check log"
+        while attempt < max_retries and not success:
+            attempt += 1
+
+            if proxy:
+                current_proxy = get_random_proxy()
+                YDL_OPTS["proxy"] = current_proxy
+
+            with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
+                try:
+                    ydl.download([url])
+                    meta = ydl.extract_info(url, download=False)
+                    meta = ydl.sanitize_info(meta)
+                    os.makedirs(os.path.dirname(output_meta), exist_ok=True)
+                    with open(output_meta, "w", encoding="utf-8") as out_f:
+                        out_f.write(json.dumps(meta, ensure_ascii=False) + "\n")
+                    status = "downloaded"
+                    success = True
+                except (youtube_dl.utils.DownloadError, TypeError) as e:
+                    status = escape_ansi(str(e))
+                    if proxy:
+                        log_blocked_servers(current_proxy)
+                    if "HTTP Error 429: Too Many Requests" not in status:
+                        os.makedirs(os.path.dirname(output_log), exist_ok=True)
+                        with open(output_log, "w") as f:
+                            f.write(
+                                "\t".join((yt_id, output_mp4, output_meta, status)) + "\n"
+                            )
+                    if attempt >= max_retries:
+                        print(f"Max retries exceeded ({max_retries}). Exiting.")
+                        sys.exit(1)
+
+        # Clean up
         del YDL_OPTS["outtmpl"]
+        if "proxy" in YDL_OPTS:
+            del YDL_OPTS["proxy"]
+
     return (yt_id, output_mp4, output_meta, output_log, status)
 
 

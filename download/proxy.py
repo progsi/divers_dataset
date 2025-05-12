@@ -3,6 +3,7 @@ import random
 def get_random_proxy(username_file: str =  "../proxy_user.txt", 
                      pw_file: str = "../proxy_pw.txt", 
                      servers_path: str = "../servers.txt",
+                     blocked_servers_path: str = "../blocked_servers.txt",
                      port: int = 89) -> str:
     # get username
     with open(username_file, "r") as f:
@@ -22,12 +23,12 @@ def get_random_proxy(username_file: str =  "../proxy_user.txt",
         servers = clean_server_list(f.readlines())
     
     # get blocked servers
-    with open(servers_path, "r") as f:
+    with open(blocked_servers_path, "r") as f:
         blocked_servers = clean_server_list(f.readlines())
     
     # get random server
     servers = [s for s in servers if s not in blocked_servers]
-    server = servers[random.randint(0, len(servers))]
+    server = random.choice(servers)
     
     print(f"Using proxy: {server}:{port}")
     return f"https://{user}:{pw}@{server}:{port}"

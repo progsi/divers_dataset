@@ -20,14 +20,10 @@ def get_youtube_id(url):
 def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
-    counter, success, iteration = 0, 0, 0
+    counter, success, proxy_iteration = 0, 0, 0
     proxy = None  # Initialize proxy once outside the loop
 
-    status = None 
-    
-    with open(input_json, encoding="utf-8") as in_f, open(
-        input_json + ".log", "w"
-    ) as logfile:
+    with open(input_json, encoding="utf-8") as in_f, open(input_json + ".log", "w") as logfile:
         logger = csv.writer(logfile, delimiter="\t")
         for jsonline in in_f:
             clique = json.loads(jsonline)
@@ -35,8 +31,8 @@ def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
                 for video in version["youtube_video"]:
                     yt_id = get_youtube_id(video["url"])
 
-                    # Rotate proxy every N iterations if enabled
-                    if proxy_rotate_every is not None and iteration % proxy_rotate_every == 0:
+                    # Rotate proxy only if a real download attempt happened proxy_rotate_every times
+                    if proxy_rotate_every is not None and proxy_iteration % proxy_rotate_every == 0:
                         works = False
                         tries = 1
                         while not works:
@@ -47,21 +43,23 @@ def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
                                 print(f"Using proxy: {proxy} found at try: {tries}")
                             tries += 1
                         print(f"Rotating proxy to {proxy}")
-                    
+
+                    # Try to download
                     row = download_audio_and_metadata(
                         yt_id, music_dir, proxy=proxy, force_failed=force_failed
                     )
                     status = row[-1]
                     logger.writerow(row)
 
-                    if status != "download previously failed" and status != "file exists":
-                        iteration += 1  # Increment regardless of status
-
                     if status == "downloaded":
                         success += 1
+                        proxy_iteration += 1  # Count this as a real download
                         break
                     elif status == "file exists":
                         break
+                    elif status == "download previously failed":
+                        # Optional: count it as an attempt
+                        proxy_iteration += 1
 
                 counter += 1
                 print("=" * 5 + f"Processed {counter:>9,} versions" + "=" * 5)

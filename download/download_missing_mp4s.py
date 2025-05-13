@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 def get_youtube_id(url):
     return url.split("/watch?v=")[1]
 
-def main(input_json, music_dir, force_failed=False):
+def main(input_json, music_dir, proxy=False, force_failed=False):
 
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
@@ -33,7 +33,7 @@ def main(input_json, music_dir, force_failed=False):
                 for video in version["youtube_video"]:
                     yt_id = get_youtube_id(video["url"])
                     row = download_audio_and_metadata(
-                        yt_id, music_dir, force_failed=force_failed
+                        yt_id, music_dir, proxy=proxy, force_failed=force_failed
                     )
                     status = row[-1]
                     logger.writerow(row)
@@ -66,6 +66,12 @@ if __name__ == "__main__":
         "Also a logs/ directory will be created to store the log files.",
     )
     parser.add_argument(
+        "--proxy",
+        "-p",
+        action="store_true",
+        help="Use a proxy server to download the videos.",
+    )
+    parser.add_argument(
         "--force-failed",
         "-f",
         action="store_true",
@@ -73,4 +79,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    main(args.input_json, args.music_dir, force_failed=args.force_failed)
+    main(args.input_json, args.music_dir, proxy=args.proxy, force_failed=args.force_failed)

@@ -34,7 +34,7 @@ def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
                     yt_id = get_youtube_id(video["url"])
 
                     # Rotate proxy every N iterations if enabled
-                    if proxy_rotate_every is not None and iteration % proxy_rotate_every == 0:
+                    if proxy_rotate_every is not None and success % proxy_rotate_every == 0:
                         works = False
                         tries = 1
                         while not works:

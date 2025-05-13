@@ -17,12 +17,23 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 def get_youtube_id(url):
     return url.split("/watch?v=")[1]
 
-def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
+def main(input_json, music_dir, proxy=False, force_failed=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
-    counter, success, proxy_iteration = 0, 0, 1
-    proxy = None  # Initialize proxy once outside the loop
-
+    counter, success, proxy_iteration = 0, 0, 0
+    
+    if proxy:
+        works = False
+        tries = 1
+        while not works:
+            candidate = get_random_proxy()
+            if test_proxy_connection(candidate):
+                proxy = candidate
+                print(f"Using proxy: {proxy} found at try: {tries}")
+            tries += 1
+    else:
+        proxy = None
+    
     with open(input_json, encoding="utf-8") as in_f, open(input_json + ".log", "w") as logfile:
         logger = csv.writer(logfile, delimiter="\t")
         for jsonline in in_f:
@@ -30,19 +41,6 @@ def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
             for version in clique["versions"]:
                 for video in version["youtube_video"]:
                     yt_id = get_youtube_id(video["url"])
-
-                    # Rotate proxy only if a real download attempt happened proxy_rotate_every times
-                    if proxy_rotate_every is not None and proxy_iteration % proxy_rotate_every == 0:
-                        works = False
-                        tries = 1
-                        while not works:
-                            candidate = get_random_proxy()
-                            works = test_proxy_connection(candidate)
-                            if works:
-                                proxy = candidate
-                                print(f"Using proxy: {proxy} found at try: {tries}")
-                            tries += 1
-                        print(f"Rotating proxy to {proxy}")
 
                     # Try to download
                     row = download_audio_and_metadata(
@@ -84,11 +82,10 @@ if __name__ == "__main__":
         "Also a logs/ directory will be created to store the log files.",
     )
     parser.add_argument(
-        "--proxy-rotate-every",
+        "--proxy",
         "-p",
-        type=int,
-        default=100,
-        help="How often to rotate the proxy (in iterations).",
+        action="store_true",
+        help="Use a proxy to download the videos."
     )
     parser.add_argument(
         "--force-failed",

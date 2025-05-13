@@ -20,7 +20,7 @@ def get_youtube_id(url):
 def main(input_json, music_dir, proxy_rotate_every=None, force_failed=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
-    counter, success, proxy_iteration = 0, 0, 0
+    counter, success, proxy_iteration = 0, 0, 1
     proxy = None  # Initialize proxy once outside the loop
 
     with open(input_json, encoding="utf-8") as in_f, open(input_json + ".log", "w") as logfile:

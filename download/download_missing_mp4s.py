@@ -20,19 +20,20 @@ def get_youtube_id(url):
 def main(input_json, music_dir, proxy=False, force_failed=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
-    counter, success, proxy_iteration = 0, 0, 0
+    counter, success = 0, 0
     
     if proxy:
         works = False
-        tries = 1
+        ntry = 1
         while not works:
             candidate = get_random_proxy()
             if test_proxy_connection(candidate):
-                proxy = candidate
-                print(f"Using proxy: {proxy} found at try: {tries}")
-            tries += 1
+                proxy_url = candidate
+                works = True
+                print(f"Using proxy: {proxy_url} found at try: {ntry}")
+            ntry += 1
     else:
-        proxy = None
+        proxy_url = None
     
     with open(input_json, encoding="utf-8") as in_f, open(input_json + ".log", "w") as logfile:
         logger = csv.writer(logfile, delimiter="\t")
@@ -44,20 +45,16 @@ def main(input_json, music_dir, proxy=False, force_failed=False):
 
                     # Try to download
                     row = download_audio_and_metadata(
-                        yt_id, music_dir, proxy=proxy, force_failed=force_failed
+                        yt_id, music_dir, proxy=proxy_url, force_failed=force_failed
                     )
                     status = row[-1]
                     logger.writerow(row)
 
                     if status == "downloaded":
                         success += 1
-                        proxy_iteration += 1  # Count this as a real download
                         break
                     elif status == "file exists":
                         break
-                    elif status == "download previously failed":
-                        # Optional: count it as an attempt
-                        proxy_iteration += 1
 
                 counter += 1
                 print("=" * 5 + f"Processed {counter:>9,} versions" + "=" * 5)

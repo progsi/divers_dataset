@@ -11,7 +11,7 @@ import csv
 import argparse
 import re
 import yt_dlp as youtube_dl
-from proxy import get_random_proxy, log_blocked_servers
+from proxy import log_blocked_servers
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -56,7 +56,7 @@ YDL_OPTS = {
     #     'Connection': 'keep-alive',
     # }
 }
-def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy=False, max_retries=25):
+def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy: str = None, max_retries=25):
     url = get_youtube_url(yt_id)
 
     log_dir = os.path.join(root_dir, "logs")
@@ -78,7 +78,7 @@ def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy=False
             attempt += 1
 
             if proxy:
-                current_proxy = get_random_proxy()
+                current_proxy = proxy
                 YDL_OPTS["proxy"] = current_proxy
 
             with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:

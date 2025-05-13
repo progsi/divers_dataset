@@ -1,4 +1,5 @@
 import random
+import requests
 
 def get_random_proxy(username_file: str =  "../proxy_user.txt", 
                      pw_file: str = "../proxy_pw.txt", 
@@ -36,3 +37,28 @@ def get_random_proxy(username_file: str =  "../proxy_user.txt",
 def log_blocked_servers(server: str, blocked_servers_path: str = "../blocked_servers.txt") -> None:
     with open(blocked_servers_path, "a") as file:
         file.write(server + "\n")
+
+def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 5) -> bool:
+    proxies = {
+        "http": proxy_url,
+        "https": proxy_url,
+    }
+    try:
+        response = requests.get(test_url, proxies=proxies, timeout=timeout)
+        print("Proxy test succeeded:", response.json())
+        return True
+    except requests.RequestException as e:
+        print(f"Proxy test failed: {e}")
+        return False
+
+def test_random_proxy_connection() -> None:
+    proxy = get_random_proxy()
+    server = proxy.split("@")[-1].split(":")[0]  # extract server address from proxy URL
+    if test_proxy_connection(proxy):
+        print(f"✅ Proxy {server} is working.")
+    else:
+        print(f"❌ Proxy {server} failed. Logging as blocked.")
+        log_blocked_servers(server)
+        
+if __name__ == "__main__":
+    test_random_proxy_connection()

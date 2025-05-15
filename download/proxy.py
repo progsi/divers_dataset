@@ -1,7 +1,20 @@
 import random
 import requests
+from swiftshadow import QuickProxy
 
-def get_random_proxy(username_file: str =  "../proxy_user.txt", 
+
+def get_random_proxy(from_file: bool = True) -> str:
+    """
+    Get a random proxy from the QuickProxy service.
+    """
+    if from_file:
+        return get_random_proxy_from_file()
+    else:
+        ip_port, protocol = QuickProxy()  # Output: http://<ip>:<port>
+        return f"{protocol}://{ip_port}"
+
+
+def get_random_proxy_from_file(username_file: str =  "../proxy_user.txt", 
                      pw_file: str = "../proxy_pw.txt", 
                      servers_path: str = "../servers.txt",
                      blocked_servers_path: str = "../blocked_servers.txt",

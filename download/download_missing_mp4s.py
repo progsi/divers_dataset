@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 def get_youtube_id(url):
     return url.split("/watch?v=")[1]
 
-def main(input_json, music_dir, proxy=False, force_failed=False):
+def main(input_json, music_dir, proxy=False, force_failed=False, reverse=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
     counter, success = 0, 0
@@ -37,6 +37,9 @@ def main(input_json, music_dir, proxy=False, force_failed=False):
     
     with open(input_json, encoding="utf-8") as in_f, open(input_json + ".log", "w") as logfile:
         logger = csv.writer(logfile, delimiter="\t")
+        if reverse:
+            print("Reversing the order of the versions...")
+            in_f = reversed(list(in_f))
         for jsonline in in_f:
             clique = json.loads(jsonline)
             for version in clique["versions"]:
@@ -89,6 +92,12 @@ if __name__ == "__main__":
         "-f",
         action="store_true",
         help="Force download of failed IDs.",
+    )
+    parser.add_argument(
+        "--reverse",
+        "-r",
+        action="store_true",
+        help="Reverse the order of the versions.",
     )
     args = parser.parse_args()
 

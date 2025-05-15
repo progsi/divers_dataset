@@ -84,16 +84,12 @@ def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy: str 
                 with open(output_meta, "w", encoding="utf-8") as out_f:
                     out_f.write(json.dumps(meta, ensure_ascii=False) + "\n")
                 status = "downloaded"
-            except (youtube_dl.utils.DownloadError, TypeError) as e:
+            except Exception as e:
                 status = escape_ansi(str(e))
-                if proxy:
+                if "Sign in to confirm you’re not a bot" in status:
                     log_blocked_servers(proxy)
-                if "HTTP Error 429: Too Many Requests" not in status:
-                    os.makedirs(os.path.dirname(output_log), exist_ok=True)
-                    with open(output_log, "w") as f:
-                        f.write(
-                            "\t".join((yt_id, output_mp4, output_meta, status)) + "\n"
-                        )
+                    print("Aborting, need to log in.")
+                    sys.exit()
 
         # Clean up
         del YDL_OPTS["outtmpl"]

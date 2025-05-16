@@ -15,7 +15,7 @@ def get_random_proxy(mode: str = "credentials") -> str:
         ip_port, protocol = QuickProxy()  # Output: http://<ip>:<port>
         return f"{protocol}://{ip_port}"
 
-def get_random_proxy_from_file(file_path: str = "../proxyscrape.txt") -> str:
+def get_random_proxy_from_file(file_path: str = "../proxies.txt") -> str:
     """
     Get a random proxy from a file.
     """

@@ -26,7 +26,7 @@ def main(input_json, music_dir, proxy=None, force_failed=False, reverse=False):
         works = False
         ntry = 1
         while not works:
-            candidate = get_random_proxy(proxy == "file")
+            candidate = get_random_proxy(proxy)
             if test_proxy_connection(candidate):
                 proxy_url = candidate
                 works = True
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--proxy",
         "-p",
-        choices=["file", "scrape"],
+        choices=["credentials", "file", "scrape"],
         default=None,
         help="Use a proxy to download the videos."
     )

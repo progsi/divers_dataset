@@ -1,7 +1,7 @@
 import random
 import requests
 from swiftshadow import QuickProxy
-
+import yt_dlp
 
 def get_random_proxy(mode: str = "credentials") -> str:
     """
@@ -62,14 +62,36 @@ def log_blocked_servers(server: str, blocked_servers_path: str = "../blocked_ser
         file.write(server + "\n")
 
 def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 5) -> bool:
-    proxies = {
+    proxy = {
         "http": proxy_url,
         "https": proxy_url,
     }
     try:
-        response = requests.get(test_url, proxies=proxies, timeout=timeout)
-        print("Proxy test succeeded:", response.json())
-        return True
+        response = requests.get(test_url, proxies=proxy, timeout=timeout)
+        if response:
+            test_video_url = "https://www.youtube.com/watch?v=E5XxizdMKRk"  # yt-dlp test video
+
+            ydl_opts = {
+                'proxy': proxy,
+                'format': 'worst',  # Smallest file for testing
+                'outtmpl': 'test_video.%(ext)s',
+                'noplaylist': True,
+                'quiet': True,
+                'no_warnings': True,
+            }
+
+            print(f"Testing download using proxy: {proxy}")
+
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([test_video_url])
+                print("✅ Download succeeded. Proxy is working.")
+                return True
+            except Exception as e:
+                print(f"❌ Download failed. Proxy may not be working.\nError: {e}")
+
+                print("Proxy test succeeded:", response.json())
+                return False
     except requests.RequestException as e:
         print(f"Proxy test failed: {e}")
         return False

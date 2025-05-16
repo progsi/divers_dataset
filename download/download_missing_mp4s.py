@@ -102,4 +102,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    main(args.input_json, args.music_dir, proxy=args.proxy, force_failed=args.force_failed)
+    main(args.input_json, args.music_dir, proxy=args.proxy, reverse=args.reverse, force_failed=args.force_failed)

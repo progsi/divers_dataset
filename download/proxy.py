@@ -64,7 +64,7 @@ def log_blocked_servers(server: str, blocked_servers_path: str = "../blocked_ser
 def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 5) -> bool:
     proxy = {
         "http": proxy_url,
-        "https": proxy_url,
+        #"https": proxy_url.replace("http://", "https://"),
     }
     try:
         response = requests.get(test_url, proxies=proxy, timeout=timeout)
@@ -72,7 +72,7 @@ def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/i
             test_video_url = "https://www.youtube.com/watch?v=E5XxizdMKRk"  # yt-dlp test video
 
             ydl_opts = {
-                'proxy': proxy,
+                'proxy': proxy_url,
                 'format': 'worst',  # Smallest file for testing
                 'outtmpl': 'test_video.mp4',
                 'noplaylist': True,

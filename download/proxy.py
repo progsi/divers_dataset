@@ -74,7 +74,7 @@ def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/i
             ydl_opts = {
                 'proxy': proxy,
                 'format': 'worst',  # Smallest file for testing
-                'outtmpl': 'test_video.%(ext)s',
+                'outtmpl': 'test_video.mp4',
                 'noplaylist': True,
                 'quiet': True,
                 'no_warnings': True,

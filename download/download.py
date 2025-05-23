@@ -67,6 +67,8 @@ def download_audio_and_metadata(yt_id, root_dir, force_failed=False, proxy: str 
 
     if os.path.exists(output_mp4) and os.path.exists(output_meta):
         status = "file exists"
+    elif os.path.exists(output_mp4.replace(".mp4", ".skip")):
+        status = "file exists on other server"
     elif os.path.exists(output_log) and not force_failed:
         status = "download previously failed"
     else:

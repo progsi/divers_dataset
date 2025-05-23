@@ -1,20 +1,30 @@
 import random
 import requests
 from swiftshadow import QuickProxy
+import yt_dlp
 
-
-def get_random_proxy(from_file: bool = True) -> str:
+def get_random_proxy(mode: str = "credentials") -> str:
     """
     Get a random proxy from the QuickProxy service.
     """
-    if from_file:
+    if mode == "credentials":
+        return get_random_proxy_with_credentials()
+    elif mode == "file":
         return get_random_proxy_from_file()
     else:
         ip_port, protocol = QuickProxy()  # Output: http://<ip>:<port>
         return f"{protocol}://{ip_port}"
 
+def get_random_proxy_from_file(file_path: str = "../proxies.txt") -> str:
+    """
+    Get a random proxy from a file.
+    """
+    with open(file_path, "r") as f:
+        proxies = f.readlines()
+    proxy = random.choice(proxies).strip()
+    return f"http://{proxy}"
 
-def get_random_proxy_from_file(username_file: str =  "../proxy_user.txt", 
+def get_random_proxy_with_credentials(username_file: str =  "../proxy_user.txt", 
                      pw_file: str = "../proxy_pw.txt", 
                      servers_path: str = "../servers.txt",
                      blocked_servers_path: str = "../blocked_servers.txt",
@@ -52,14 +62,36 @@ def log_blocked_servers(server: str, blocked_servers_path: str = "../blocked_ser
         file.write(server + "\n")
 
 def test_proxy_connection(proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 5) -> bool:
-    proxies = {
+    proxy = {
         "http": proxy_url,
-        "https": proxy_url,
+        #"https": proxy_url.replace("http://", "https://"),
     }
     try:
-        response = requests.get(test_url, proxies=proxies, timeout=timeout)
-        print("Proxy test succeeded:", response.json())
-        return True
+        response = requests.get(test_url, proxies=proxy, timeout=timeout)
+        if response:
+            test_video_url = "https://www.youtube.com/watch?v=E5XxizdMKRk"  # yt-dlp test video
+
+            ydl_opts = {
+                'proxy': proxy_url,
+                'format': 'worst',  # Smallest file for testing
+                'outtmpl': 'test_video.mp4',
+                'noplaylist': True,
+                'quiet': True,
+                'no_warnings': True,
+            }
+
+            print(f"Testing download using proxy: {proxy}")
+
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([test_video_url])
+                print("✅ Download succeeded. Proxy is working.")
+                return True
+            except Exception as e:
+                print(f"❌ Download failed. Proxy may not be working.\nError: {e}")
+
+                print("Proxy test succeeded:", response.json())
+                return False
     except requests.RequestException as e:
         print(f"Proxy test failed: {e}")
         return False

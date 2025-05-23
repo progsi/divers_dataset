@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 def get_youtube_id(url):
     return url.split("/watch?v=")[1]
 
-def main(input_json, music_dir, proxy=False, force_failed=False, reverse=False):
+def main(input_json, music_dir, proxy=None, force_failed=False, reverse=False):
     print("Downloading the missing YouTube IDs of the matched versions...")
     t0 = time.monotonic()
     counter, success = 0, 0
@@ -26,7 +26,7 @@ def main(input_json, music_dir, proxy=False, force_failed=False, reverse=False):
         works = False
         ntry = 1
         while not works:
-            candidate = get_random_proxy()
+            candidate = get_random_proxy(proxy)
             if test_proxy_connection(candidate):
                 proxy_url = candidate
                 works = True
@@ -84,7 +84,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--proxy",
         "-p",
-        action="store_true",
+        choices=["credentials", "file", "scrape"],
+        default=None,
         help="Use a proxy to download the videos."
     )
     parser.add_argument(
@@ -101,4 +102,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    main(args.input_json, args.music_dir, proxy=args.proxy, force_failed=args.force_failed)
+    main(args.input_json, args.music_dir, proxy=args.proxy, reverse=args.reverse, force_failed=args.force_failed)

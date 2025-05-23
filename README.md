@@ -55,6 +55,30 @@ Manually checking the sample, we observed that *both* contains references to the
 ## Make datasets
 In `make_datasets.ipynb` we make two subsets. First, the full *both* dataset. We further create another filtered version were we filter some indicators of official music videos (e.g. *remastered* etc.). 
 The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
+### Make Sub-Datasets
+The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:
+- Version identification 
+    - subset focussing on difficult versions
+- Music structure analysis 
+    - subset with versions only containing sub-segments 
+- Fingerprinting
+    - reaction videos, lyric videos?
+- Other identifications
+    - artist
+    - genre
+    - country of origin
+    - year
+    - type of video (e.g. studio recording, amateur, ...)
+- TODO: find out which sub-datasets we have
+
+## Cleanup due to Title Variability Limitation
+We aim to address the limitations of the *Discogs-VI-YT* which are mentioned in the paper.
+### False Negatives
+An LLM is used to resolve translations and potentially also parodies. 
+- TODO: script to match works of the same writers
+### False Positives
+Additionally, the shorter the title, the most likely is that different works have the same title (e.g. *Yesterday* by The Beatles vs. *Yesterday* by Leona Lewis).
+- TODO: detect versions which are not part of a respective clique by involving YouTube video metadata and potentially also manual annotation
 
 ## Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

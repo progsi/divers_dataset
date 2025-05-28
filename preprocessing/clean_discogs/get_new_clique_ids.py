@@ -2,6 +2,7 @@ import argparse
 import json
 import pandas as pd
 import networkx as nx
+from collections import defaultdict
 
 clique_id = "clique_id"
 version_id = "version_id"
@@ -79,6 +80,32 @@ def assign_connected_components(group, track_writer_col: str = "track_writer_nam
     group['clique_subgroup'] = group.index.map(mapping)
     return group
            
+def get_new_clique_info(df: pd.DataFrame) -> dict:
+    """
+    Build a nested JSON from a DataFrame based on cleaned track titles, clique IDs,
+    and subgroups of writer names.
+    """
+    output = {}
+
+    grouped = df.groupby("track_title_cleaned")
+
+    for title_cleaned, group in grouped:
+        clique_id = group["clique_id"].iloc[0]
+        
+        new_cliques = defaultdict(list)
+        for _, row in group.iterrows():
+            key = row["clique_id2"]
+            val = row["track_writer_names2"]
+            new_cliques[key].append(val)
+
+        if len(new_cliques) >= 2:
+            output[title_cleaned] = {
+                "clique_id": clique_id,
+                "new_cliques": dict(new_cliques)
+            }
+
+    return output
+
 def main() -> None:
     """
     Main function to parse command-line arguments and call the appropriate function.
@@ -88,13 +115,15 @@ def main() -> None:
     parser.add_argument('input1', type=str, nargs='?', help="Directory containing Discogs-VI-YT metadata file.")
     parser.add_argument('input2', type=str, nargs='?', help="Directory containing cleaned writers (LLM output).")
 
-    parser.add_argument('output', type=str, help="Output JSON file to save the writer map.")
-    parser.add_argument('--llm', type=str, choices=["qwen", "llama"], 
-                        help="LLM to use for normalization. Might require rewriting LLMs variable in this script.")
+    parser.add_argument('output', type=str, help="Output JSON file to save the new cliques.")
 
     args = parser.parse_args()
     
+    print("Reading dataset...")
     data = read_jsonl(args.input1)
+    print(f"Read {len(data):,} cliques from {args.input1}.")
+    
+    print("Reading cleaned writers...")
     cleaned_writers = {k: v for d in read_jsonl(args.input1) for k, v in d.items()}
     
     print("Collecting unique metadata from cliques...")
@@ -107,12 +136,29 @@ def main() -> None:
 
     df = pd.DataFrame(data_all)
     
+    print("Add normalized writers...")
     df["track_writer_names2"] = df.track_writer_names.apply(lambda x: add_normalized_writers(x, cleaned_writers))
 
     # Apply per clique_id group
+    print("Find connected versions...")
     df2 = df.groupby('clique_id', group_keys=False).apply(assign_connected_components)
     df2["clique_id2"] = df2["clique_id"].astype(str) + "_" + df2["clique_subgroup"].astype(str)
     print(f"Number of unique cliques increased from: {df2['clique_id'].nunique():,} to {df2['clique_id2'].nunique():,}")
+    
+    print(f"Writing new clique IDs to {args.output}...")
+    df2[["clique_id", "version_id", "clique_subgroup", "clique_id2"]].to_json(
+        args.output,   
+        orient="records", 
+        lines=True, 
+        force_ascii=False
+    )
 
+    print("Get new clique info...")
+    output = get_new_clique_info(df2)
+    
+    print(f"Writing new clique info to {args.output + '.info'}...")
+    with open(args.output, "w", encoding="utf-8") as f:
+        json.dump(output, f, ensure_ascii=False, indent=4)
+    
 if __name__ == "__main__":
     main()

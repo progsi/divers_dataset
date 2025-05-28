@@ -80,8 +80,17 @@ python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs
 ```
 #### Finding versions of the same clique with different normalized writers
 This results in new cliques.
-- eliminating some new cliques which do not have more than one version
+```
+python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_cliqes_qwen.jsonl
+```
+#### Create new dataset file
+- filter to only have cliques with min. 2 versions
+- remap the clique ids
+```
+python preprocessing/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/new_clique_ids.jsonl data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned
+```
 ### Reduce false negatives
+Adaptions etc.
 TBA
 
 ## Download

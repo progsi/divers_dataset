@@ -71,14 +71,18 @@ The dataset is very large and depending on the use case a respective subset migh
     - type of video (e.g. studio recording, amateur, ...)
 - TODO: find out which sub-datasets we have
 
-## Cleanup due to Title Variability Limitation
-We aim to address the limitations of the *Discogs-VI-YT* which are mentioned in the paper.
-### False Negatives
-An LLM is used to resolve translations and potentially also parodies. 
-- TODO: script to match works of the same writers
-### False Positives
-Additionally, the shorter the title, the most likely is that different works have the same title (e.g. *Yesterday* by The Beatles vs. *Yesterday* by Leona Lewis).
-- TODO: detect versions which are not part of a respective clique by involving YouTube video metadata and potentially also manual annotation
+## Cleanup *Discogs-VI-YT*
+We do the following to cleanup.
+### Reduce false positives
+#### Normalizing the writers with an LLM
+```
+python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl --llm qwen
+```
+#### Finding versions of the same clique with different normalized writers
+This results in new cliques.
+- eliminating some new cliques which do not have more than one version
+### Reduce false negatives
+TBA
 
 ## Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

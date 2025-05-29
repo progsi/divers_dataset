@@ -30,16 +30,16 @@ def yield_clique_metadata_all(data: list):
     """
     for clique in data:
         for version in clique["versions"]:
-            for track in version["tracks"]:
-                clique_metadata = {}
-                clique_metadata[clique_id] = clique[clique_id]
-                clique_metadata[version_id] = version[version_id]
-                clique_metadata[track_title] = track[track_title]
-                clique_metadata[track_title_cleaned] = track[track_title_cleaned]
-                clique_metadata[track_writer_names] = track[track_writer_names]
-                clique_metadata[released] = track[released]
+            track = version["tracks"][0]  # Assuming we only want the first track in each version
+            clique_metadata = {}
+            clique_metadata[clique_id] = clique[clique_id]
+            clique_metadata[version_id] = version[version_id]
+            clique_metadata[track_title] = track[track_title]
+            clique_metadata[track_title_cleaned] = track[track_title_cleaned]
+            clique_metadata[track_writer_names] = track[track_writer_names]
+            clique_metadata[released] = track[released]
 
-                yield clique_metadata
+            yield clique_metadata
 
 def add_normalized_writers(writers: list, cleaned_writers: dict) -> list:
     """

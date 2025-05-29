@@ -13,7 +13,7 @@ def read_jsonl(path: str, k: int = None) -> list:
 
 def map_versions_by_id(data: list) -> dict:
     """
-    Flatten all versions into a dict: version_id → full version metadata
+    Flatten all versions into a dict: version_id → version metadata
     """
     version_map = {}
     for clique in data:
@@ -22,7 +22,7 @@ def map_versions_by_id(data: list) -> dict:
     return version_map
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Restructure dataset using new clique_id2 values.")
+    parser = argparse.ArgumentParser(description="Reassign clique_ids without duplicating versions.")
     parser.add_argument('input', type=str, help="Original dataset in JSONL format.")
     parser.add_argument('new_clique_ids', type=str, help="New clique assignments (JSONL).")
     parser.add_argument('output', type=str, help="Output JSONL file.")
@@ -34,41 +34,48 @@ def main() -> None:
     print("Reading new clique ID assignments...")
     new_clique_ids = read_jsonl(args.new_clique_ids)
 
-    # Step 1: Build lookup of version_id → full version metadata
+    # Step 1: Build lookup from version_id → version
     version_map = map_versions_by_id(data)
 
-    # Step 2: Reorganize by clique_id2
-    new_cliques = defaultdict(list)
+    # Step 2: Build mapping from version_id → new clique_id2
+    version_to_clique = {}
     for entry in new_clique_ids:
-        version_id = entry["version_id"]
-        clique_id2 = entry["clique_id2"]
+        version_to_clique[entry["version_id"]] = {
+            "clique_id2": entry["clique_id2"],
+            "clique_subgroup": entry.get("clique_subgroup")
+        }
+
+    # Step 3: Group versions by new clique_id2
+    new_cliques = defaultdict(list)
+
+    for version_id, assignment in version_to_clique.items():
         version = version_map.get(version_id)
+        if not version:
+            continue  # skip unknown version IDs
+        version_copy = version.copy()
+        version_copy["clique_id"] = assignment["clique_id2"]
+        if assignment["clique_subgroup"] is not None:
+            version_copy["clique_subgroup"] = assignment["clique_subgroup"]
+        new_cliques[assignment["clique_id2"]].append(version_copy)
 
-        if version:
-            version_copy = version.copy()
-            version_copy["clique_id2"] = clique_id2
-            if "clique_subgroup" in entry:
-                version_copy["clique_subgroup"] = entry["clique_subgroup"]
-            new_cliques[clique_id2].append(version_copy)
-
-    # Step 3: Separate kept and dropped cliques
+    # Step 4: Repackage into original structure
     kept = []
     dropped = []
 
     for clique_id2, versions in new_cliques.items():
-        clique_obj = {
+        clique = {
             "clique_id": clique_id2,
             "versions": versions
         }
         if len(versions) >= 2:
-            kept.append(clique_obj)
+            kept.append(clique)
         else:
-            dropped.append(clique_obj)
+            dropped.append(clique)
 
     print(f"Total cliques after regrouping: {len(new_cliques):,}")
     print(f"Kept: {len(kept):,}, Dropped: {len(dropped):,}")
 
-    # Step 4: Write to output files
+    # Step 5: Write output files
     with open(args.output, "w", encoding="utf-8") as f:
         for item in kept:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")

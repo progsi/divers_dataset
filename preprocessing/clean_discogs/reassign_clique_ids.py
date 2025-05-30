@@ -11,79 +11,75 @@ def read_jsonl(path: str, k: int = None) -> list:
             results.append(json.loads(line))
     return results
 
-def map_versions_by_id(data: list) -> dict:
-    """
-    Flatten all versions into a dict: version_id → version metadata
-    """
-    version_map = {}
-    for clique in data:
-        for version in clique["versions"]:
-            version_map[version["version_id"]] = version
-    return version_map
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Reassign clique_ids without duplicating versions.")
     parser.add_argument('input', type=str, help="Original dataset in JSONL format.")
-    parser.add_argument('new_clique_ids', type=str, help="New clique assignments (JSONL).")
+    parser.add_argument('new_clique_ids', type=str, help="New clique assignments (JSON file).")
     parser.add_argument('output', type=str, help="Output JSONL file.")
+    parser.add_argument('--drop_slingleton', action='store_true',)
 
     args = parser.parse_args()
 
     print("Reading input dataset...")
     data = read_jsonl(args.input)
-    print("Reading new clique ID assignments...")
-    new_clique_ids = read_jsonl(args.new_clique_ids)
 
-    # Step 1: Build lookup from version_id → version
-    version_map = map_versions_by_id(data)
+    print("Reading new clique ID assignments (JSON)...")
+    with open(args.new_clique_ids, "r", encoding="utf-8") as f:
+        new_clique_ids = json.load(f)
 
-    # Step 2: Build mapping from version_id → new clique_id2
-    version_to_clique = {}
-    for entry in new_clique_ids:
-        version_to_clique[entry["version_id"]] = {
-            "clique_id2": entry["clique_id2"],
-            "clique_subgroup": entry.get("clique_subgroup")
-        }
+    # Build lookup from version_id → version
+    version_map = {}
+    for clique in data:
+        for version in clique["versions"]:
+            version_map[version["version_id"]] = version
 
-    # Step 3: Group versions by old clique_id, then by new clique_id2
-    # We'll create a nested dict: old_clique_id -> new_clique_id2 -> list of versions
-    regrouped = defaultdict(lambda: defaultdict(list))
+    # Group versions by new clique_id (ignore old clique_id)
+    new_cliques = defaultdict(list)
 
-    for version_id, assignment in version_to_clique.items():
-        version = version_map.get(version_id)
-        if not version:
-            continue  # skip unknown version IDs
-        old_clique_id = version["clique_id"]  # old clique id from original data
-        version_copy = version.copy()
-        version_copy["clique_id"] = assignment["clique_id2"]  # update to new clique id
-        if assignment["clique_subgroup"] is not None:
-            version_copy["clique_subgroup"] = assignment["clique_subgroup"]
-        regrouped[old_clique_id][assignment["clique_id2"]].append(version_copy)
+    for old_clique_id, versions_dict in new_clique_ids.items():
+        for version_id, new_clique_id2 in versions_dict.items():
+            version = version_map.get(version_id)
+            if not version:
+                continue  # skip unknown version IDs
 
-    # Step 4: Build final output structure like the old dataset,
-    # but with versions regrouped and sorted by new clique_id2
-    output_cliques = []
+            version_copy = version.copy()
+            # Remove old clique_id from version copy, do NOT include new clique_id in version
+            if "clique_id" in version_copy:
+                del version_copy["clique_id"]
 
-    for old_clique_id, new_cliques_dict in regrouped.items():
-        # Flatten versions for this old clique, sorting by new clique_id2
-        versions_sorted = []
-        for new_clique_id2 in sorted(new_cliques_dict.keys()):
-            versions_sorted.extend(new_cliques_dict[new_clique_id2])
+            new_cliques[new_clique_id2].append(version_copy)
 
+    # Separate kept and dropped cliques
+    kept = []
+    dropped = []
+
+    for new_clique_id2, versions in new_cliques.items():
         clique_entry = {
-            "clique_id": old_clique_id,
-            "versions": versions_sorted
+            "clique_id": new_clique_id2,
+            "versions": versions
         }
-        output_cliques.append(clique_entry)
+        if len(versions) >= 2 or not args.drop_slingleton:
+            kept.append(clique_entry)
+        else:
+            dropped.append(clique_entry)
 
-    print(f"Rebuilt {len(output_cliques):,} cliques with regrouped versions.")
+    print(f"Total cliques after regrouping: {len(new_cliques):,}")
+    print(f"Kept cliques (≥2 versions): {len(kept):,}")
+    print(f"Dropped cliques (<2 versions): {len(dropped):,}")
 
-    # Step 5: Write output to JSONL file
+    # Write kept cliques to output
     with open(args.output, "w", encoding="utf-8") as f:
-        for clique in output_cliques:
+        for clique in kept:
             f.write(json.dumps(clique, ensure_ascii=False) + "\n")
 
-    print(f"Written regrouped cliques to {args.output}")
+    # Write dropped cliques to separate file with '.dropped' appended
+    dropped_path = args.output + ".dropped"
+    with open(dropped_path, "w", encoding="utf-8") as f:
+        for clique in dropped:
+            f.write(json.dumps(clique, ensure_ascii=False) + "\n")
+
+    print(f"Written kept cliques to {args.output}")
+    print(f"Written dropped cliques to {dropped_path}")
 
 if __name__ == "__main__":
     main()

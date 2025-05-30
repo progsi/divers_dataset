@@ -2,10 +2,32 @@
 The 2nd Version of the [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset) dataset. Only the musical works are based on *Discogs*. However, the versions are crawled from YouTube and are not necessarily listed on any platform based on manual collection (eg. *Discogs*, *SecondHandSongs*, etc.).
 
 # Dataset Creation
+## Cleanup *Discogs-VI-YT*
+We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.
+### Reduce false positives
+#### Normalizing the writers with an LLM
+Here is an example with the LLM *Qwen3*. The mapping from the CLI parameter to the model is hard-coded in the script.
+```
+python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers.jsonl --llm qwen
+```
+#### Finding versions of the same clique with different normalized writers
+This results in new cliques.
+```
+python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_cliques.json
+```
+#### Create new dataset file
+Remapping of cliques.
+```
+python preprocessing/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/new_clique_ids.jsonl data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned
+```
+### Reduce false negatives
+Adaptions etc.
+TBA
+
 ## Extract titles from Discogs-VI-YT 
 To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
-python preprocessing/get_unique_titles.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json
+python preprocessing/get_unique_titles.py data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned data/discogs/one_title_per_clique.json
 ```
 ## Search on YouTube
 We now search for up to 500 results per clique, using the text query (song title).
@@ -70,28 +92,6 @@ The dataset is very large and depending on the use case a respective subset migh
     - year
     - type of video (e.g. studio recording, amateur, ...)
 - TODO: find out which sub-datasets we have
-
-## Cleanup *Discogs-VI-YT*
-We do the following to cleanup.
-### Reduce false positives
-#### Normalizing the writers with an LLM
-```
-python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl --llm qwen
-```
-#### Finding versions of the same clique with different normalized writers
-This results in new cliques.
-```
-python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_cliqes_qwen.jsonl
-```
-#### Create new dataset file
-- filter to only have cliques with min. 2 versions
-- remap the clique ids
-```
-python preprocessing/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/new_clique_ids.jsonl data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned
-```
-### Reduce false negatives
-Adaptions etc.
-TBA
 
 ## Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

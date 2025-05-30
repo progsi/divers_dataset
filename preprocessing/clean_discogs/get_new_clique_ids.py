@@ -82,27 +82,19 @@ def assign_connected_components(group, track_writer_col: str = "track_writer_nam
            
 def get_new_clique_info(df: pd.DataFrame) -> dict:
     """
-    Build a nested JSON from a DataFrame based on cleaned track titles, clique IDs,
-    and subgroups of writer names.
+    Build a dict keyed by old clique_id.
+    Each old clique_id maps to a dict of version_id -> new clique_id2.
     """
     output = {}
 
-    grouped = df.groupby("track_title_cleaned")
+    grouped = df.groupby("clique_id")
 
-    for title_cleaned, group in grouped:
-        clique_id = group["clique_id"].iloc[0]
-        
-        new_cliques = defaultdict(list)
+    for clique_id, group in grouped:
+        version_map = {}
         for _, row in group.iterrows():
-            key = row["clique_id2"]
-            val = row["track_writer_names2"]
-            new_cliques[key].append(val)
+            version_map[row["version_id"]] = row["clique_id2"]
 
-        if len(new_cliques) >= 2:
-            output[title_cleaned] = {
-                "clique_id": clique_id,
-                "new_cliques": dict(new_cliques)
-            }
+        output[clique_id] = version_map
 
     return output
 

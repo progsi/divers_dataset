@@ -75,8 +75,8 @@ def filter_writers_special_chars(df_explode: pd.DataFrame) -> pd.DataFrame:
 
     # Filter rows where 'your_text_column' contains any special char
     filtered_rows = df_explode[df_explode['track_writer_names'].str.contains(pattern, regex=True, na=False)]
-    filtered_rows = filtered_rows.drop_duplicates(subset=["track_writer_names"], keep="first")
     return filtered_rows
+
       
 def main() -> None:
     """
@@ -88,7 +88,7 @@ def main() -> None:
     parser.add_argument('output', type=str, help="Output JSON file to save the writer map.")
     parser.add_argument('--llm', type=str, choices=["qwen", "llama"], 
                         help="LLM to use for normalization. Might require rewriting LLMs variable in this script.")
-
+    parser.add_argument('--filter', action='store_true', help="Whether to filter to only have writers with special chars.")
     args = parser.parse_args()
     
     print(f"Reading data from {args.input}...")
@@ -104,8 +104,15 @@ def main() -> None:
     df = pd.DataFrame(data_unique)
     df = df.explode("track_writer_names")
     
-    df = filter_writers_special_chars(df)
-    print(f"Filtered {df.shape[0]:,} rows with special characters in 'track_writer_names'.")
+    if args.filter:
+        print("Filter to only have writers with special chars.")
+        df = filter_writers_special_chars(df)
+    else:
+        print("Not filtering")
+        
+    df = df.drop_duplicates(subset=["track_writer_names"], keep="first")
+
+    print(f"{df.shape[0]:,} rows with special characters in 'track_writer_names'.")
 
     template = RichPromptTemplate(template_str)
     llm = Ollama(model=LLMs[args.llm], request_timeout=120.0, json_mode=True)

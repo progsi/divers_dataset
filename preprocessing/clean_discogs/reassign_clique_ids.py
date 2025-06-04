@@ -64,22 +64,23 @@ def main() -> None:
             dropped.append(clique_entry)
 
     print(f"Total cliques after regrouping: {len(new_cliques):,}")
-    print(f"Kept cliques (≥2 versions): {len(kept):,}")
-    print(f"Dropped cliques (<2 versions): {len(dropped):,}")
+    print(f"Kept cliques: {len(kept):,}")
+    print(f"Dropped cliques: {len(dropped):,}")
 
     # Write kept cliques to output
     with open(args.output, "w", encoding="utf-8") as f:
         for clique in kept:
             f.write(json.dumps(clique, ensure_ascii=False) + "\n")
 
-    # Write dropped cliques to separate file with '.dropped' appended
-    dropped_path = args.output + ".dropped"
-    with open(dropped_path, "w", encoding="utf-8") as f:
-        for clique in dropped:
-            f.write(json.dumps(clique, ensure_ascii=False) + "\n")
-
     print(f"Written kept cliques to {args.output}")
-    print(f"Written dropped cliques to {dropped_path}")
+    
+    if args.drop_slingleton:
+        # Write dropped cliques to separate file with '.dropped' appended
+        dropped_path = args.output + ".dropped"
+        with open(dropped_path, "w", encoding="utf-8") as f:
+            for clique in dropped:
+                f.write(json.dumps(clique, ensure_ascii=False) + "\n")
+        print(f"Written dropped cliques to {dropped_path}")
 
 if __name__ == "__main__":
     main()

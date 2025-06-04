@@ -7,14 +7,8 @@ import re
 from llama_index.llms.ollama import Ollama
 from llama_index.core.prompts import RichPromptTemplate
 
-template_str = """You are an expert in music metadata. Your task is to clean and standardize track writer names from a dataset.
-For a writer and the respective composed song the writer contributed, please normalize according to the following rules:
-1) if the writer is the name of a music group, keep the name of the group but also add the individual names of the group members.
-2) if the writer is a single person or multiple persons, then
-    2a) split concatenated names into individual names (writers might be concatenated with special characters appearing as one name)
-    2b) resolve incomplete names into full names (e.g. add missing first names or initials)
-    2c) remove any aditional information that is not part of the writer's name, such as roles or affiliations
-Please return the cleaned names as a list of strings, even if there is only one name. Return as a JSON mapping the old writer name to the cleaned names.
+template_str = """You are an expert in music metadata. Your task is to find alternative song titles (e.g. translations, parodies etc.) given a song title and the composer(s). 
+Please return the alternative titles as a list of strings, even if there is only one alternative title. If there is none, return an empty list. Return as a JSON mapping the given song title to the alternative song titles.
 ---------------------
 Written by: {{ written_by }}
 Song Title: {{ track_title }}
@@ -90,7 +84,6 @@ def main() -> None:
     parser.add_argument('output', type=str, help="Output JSON file to save the writer map.")
     parser.add_argument('--llm', type=str, choices=["qwen", "llama"], 
                         help="LLM to use for normalization. Might require rewriting LLMs variable in this script.")
-    parser.add_argument('--filter', action='store_true', help="Whether to filter to only have writers with special chars.")
     args = parser.parse_args()
     
     print(f"Reading data from {args.input}...")
@@ -104,13 +97,6 @@ def main() -> None:
     print(f"Collected {len(data_unique):,} unique entries from {len(data):,} cliques.")
 
     df = pd.DataFrame(data_unique)
-    df = df.explode("track_writer_names")
-    
-    if args.filter:
-        print("Filter to only have writers with special chars.")
-        df = filter_writers_special_chars(df)
-    else:
-        print("Not filtering")
         
     df = df.drop_duplicates(subset=["track_writer_names"], keep="first")
 
@@ -124,7 +110,7 @@ def main() -> None:
     log = []
     
     for row in tqdm(df.itertuples(index=False), total=df.shape[0], desc="Processing track writers"):
-        written_by = row.track_writer_names
+        written_by = ', '.join(row.track_writer_names)
         track_title = row.track_title
         prompt = template.format(written_by=written_by, track_title=track_title)
         if args.llm == "qwen":
@@ -146,7 +132,7 @@ def main() -> None:
     with open(args.output, "w", encoding="utf-8") as f:
         for entry in llm_output:
             f.write(json.dumps(entry) + "\n")
-    print(f"Saved normalized writers to {args.output}")
+    print(f"Saved adaptions to {args.output}")
     
     log_path = args.output + '.log'
     with open(log_path, "w", encoding="utf-8") as f:

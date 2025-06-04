@@ -12,64 +12,46 @@ def read_jsonl(path: str) -> list:
 def read_json(path: str) -> list:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-def get_split_cliques(discogs_dir: str) -> dict:
+    
+def get_cliques_to_split(discogs_dir: str) -> dict:
     """
-    Load all clique → versions mapping from train/val/test split files.
-    Returns: split → dict of {clique_id → list of version dicts}
+    Get mapping from clique_id to split.
     """
-    split_cliques = {}
+    cliques_to_split = {}
     for split in ["train", "val", "test"]:
         filename = f"{BASE_FILENAME}.{split}"
         path = os.path.join(discogs_dir, filename)
         if not os.path.exists(path):
             raise FileNotFoundError(f"Expected file '{filename}' not found in {discogs_dir}")
-        split_cliques[split] = read_json(path)  # CORRECTED to read JSON object
-    return split_cliques
+        split_cliques = read_json(path)
+        for clique_id, versions in split_cliques.items():
+            cliques_to_split[clique_id] = {
+                "split": split,
+                "versions": {v["version_id"]: v for v in versions}
+            }
+    return cliques_to_split
 
-def build_version_lookup(dataset: list) -> dict:
-    """
-    Build a lookup: version_id → enriched version dict (with first track flattened).
-    """
-    lookup = {}
-    for clique in dataset:
-        for version in clique["versions"]:
-            enriched = version.copy()
-            if "tracks" in version and version["tracks"]:
-                enriched.update(version["tracks"][0])  # flatten first track
-            enriched.pop("tracks", None)
-            lookup[version["version_id"]] = enriched
-    return lookup
-
-def assign_cliques(new_dataset: list, split_cliques: dict, use_split_content: bool, input_version_lookup: dict) -> tuple[dict, int]:
+def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content: bool) -> tuple[dict, int]:
     """
     Assign new cliques to train/val/test splits and format content.
     """
     split_map = {"train": defaultdict(list), "val": defaultdict(list), "test": defaultdict(list)}
     dropped = 0
-
-    # Build reverse index: version_id → (split, version_dict)
-    version_to_split = {}
-    for split, cliques in split_cliques.items():
-        for clique_id, versions in cliques.items():
-            for v in versions:
-                version_to_split[v["version_id"]] = (split, v)
-
+    
     for clique in new_dataset:
         new_clique_id = clique["clique_id"]
+        old_clique_id = new_clique_id.split("_")[0]
         assigned_versions = []
 
         for version in clique["versions"]:
             version_id = version["version_id"]
-            if version_id not in version_to_split:
-                continue
-            split, split_version = version_to_split[version_id]
-            if use_split_content:
+
+            split = cliques_to_split[old_clique_id]["split"]
+            split_version = cliques_to_split[old_clique_id]["versions"].get(version_id, None)
+            if use_split_content and not split_version is None:
                 content = split_version
             else:
-                if version_id not in input_version_lookup:
-                    continue
-                content = input_version_lookup[version_id]
+                content = version
 
             split_map[split][new_clique_id].append(content)
             assigned_versions.append((split, new_clique_id))
@@ -103,13 +85,8 @@ def main():
     print("Loading new dataset...")
     new_dataset = read_jsonl(args.input)
 
-    print("Loading original splits...")
-    split_cliques = get_split_cliques(args.discogs_dir)
-
-    input_version_lookup = build_version_lookup(new_dataset) if not args.use_split_content else {}
-
     print("Assigning cliques to splits...")
-    new_splits, dropped = assign_cliques(new_dataset, split_cliques, args.use_split_content, input_version_lookup)
+    new_splits, dropped = assign_cliques(new_dataset, get_cliques_to_split(args.discogs_dir), args.use_split_content, input_version_lookup)
 
     print(f"Total dropped cliques (not matched or <2 versions): {dropped}")
 

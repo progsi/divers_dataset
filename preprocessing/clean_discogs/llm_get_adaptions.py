@@ -110,7 +110,7 @@ def main() -> None:
     llm_output = []
     log = []
     
-    for row in tqdm(df.itertuples(index=False), total=df.shape[0], desc="Processing track writers"):
+    for row in tqdm(df.itertuples(index=False), total=df.shape[0], desc="Getting adaptions..."):
         cid = row.clique_id
         written_by = row.track_writer_names
         track_title = row.track_title_cleaned

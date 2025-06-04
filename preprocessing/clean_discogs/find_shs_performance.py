@@ -120,7 +120,7 @@ def main():
             # get performance data
             status = None
             while not (status == 200):
-                status, performance_data = get_performance(perf_id, get_random_proxy(mode="file"))
+                status, performance_data = get_performance(perf_id, get_random_proxy())
             collector["shs_performance"] = performance_data
             
             # Append the performance data to the list

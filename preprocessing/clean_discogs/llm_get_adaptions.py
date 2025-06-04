@@ -97,10 +97,11 @@ def main() -> None:
     print(f"Collected {len(data_unique):,} unique entries from {len(data):,} cliques.")
 
     df = pd.DataFrame(data_unique)
+    df.track_writer_names = df.track_writer_names.apply(lambda x: ', '.join([name.strip() for name in x if isinstance(name, str)]))
         
     df = df.drop_duplicates(subset=["track_writer_names"], keep="first")
 
-    print(f"{df.shape[0]:,} rows with special characters in 'track_writer_names'.")
+    print(f"{df.shape[0]:,} rows.")
 
     template = RichPromptTemplate(template_str)
     llm = Ollama(model=LLMs[args.llm], request_timeout=120.0, json_mode=True)
@@ -110,8 +111,9 @@ def main() -> None:
     log = []
     
     for row in tqdm(df.itertuples(index=False), total=df.shape[0], desc="Processing track writers"):
-        written_by = ', '.join(row.track_writer_names)
-        track_title = row.track_title
+        cid = row.clique_id
+        written_by = row.track_writer_names
+        track_title = row.track_title_cleaned
         prompt = template.format(written_by=written_by, track_title=track_title)
         if args.llm == "qwen":
             prompt = prompt + "/nothink"
@@ -124,7 +126,13 @@ def main() -> None:
             stop=["\n\n"], 
             stream=False
             )
-            llm_output.append(json.loads(resp.text))
+            out = json.loads(resp.text)
+            out["clique_id"] = cid
+            out["track_title_cleaned"] = track_title
+            out["written_by"] = written_by
+            respd = json.loads(resp.text)
+            out["llm_resp"] = list(respd.values())[0]
+            llm_output.append(out)
         except Exception as e:
             log.append(f"Error processing {written_by} for track {track_title}: {e}")
             continue

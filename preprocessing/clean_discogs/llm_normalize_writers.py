@@ -114,7 +114,7 @@ def main() -> None:
         
     df = df.drop_duplicates(subset=["track_writer_names"], keep="first")
 
-    print(f"{df.shape[0]:,} rows with special characters in 'track_writer_names'.")
+    print(f"{df.shape[0]:,} rows.")
 
     template = RichPromptTemplate(template_str)
     llm = Ollama(model=LLMs[args.llm], request_timeout=120.0, json_mode=True)

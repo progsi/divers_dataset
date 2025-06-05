@@ -47,9 +47,15 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
             version_id = version["version_id"]
 
             split = cliques_to_split[old_clique_id]["split"]
-            split_version = cliques_to_split[old_clique_id]["versions"].get(version_id, None)
-            if use_split_content and not split_version is None:
-                content = split_version
+            if use_split_content:
+                content = cliques_to_split[old_clique_id]["versions"].get(version_id, None)
+                # this case should cover the new versions that are not in the original splits
+                if not content:
+                    content = {
+                        "version_id": version_id, 
+                        "track_title": None,
+                        "youtube_id": version_id,
+                        }
             else:
                 content = version
 
@@ -67,7 +73,7 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
 def write_splits(splits: dict, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     for split, cliques in splits.items():
-        path = os.path.join(output_dir, f"{BASE_FILENAME}.{split}")
+        path = os.path.join(output_dir, f"{split}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cliques, f, ensure_ascii=False, indent=2)
         num_cliques = len(cliques)
@@ -86,7 +92,7 @@ def main():
     new_dataset = read_jsonl(args.input)
 
     print("Assigning cliques to splits...")
-    new_splits, dropped = assign_cliques(new_dataset, get_cliques_to_split(args.discogs_dir), args.use_split_content, input_version_lookup)
+    new_splits, dropped = assign_cliques(new_dataset, get_cliques_to_split(args.discogs_dir), args.use_split_content)
 
     print(f"Total dropped cliques (not matched or <2 versions): {dropped}")
 

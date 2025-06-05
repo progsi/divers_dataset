@@ -1,5 +1,7 @@
 # Discogs-VI-2
-The 2nd Version of the [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset) dataset. Only the musical works are based on *Discogs*. However, the versions are crawled from YouTube and are not necessarily listed on any platform based on manual collection (eg. *Discogs*, *SecondHandSongs*, etc.).
+A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
+- *Discogs-VI-YT-2* or *DVI2*: a cleaned version of *DVI* which contains slightly less versions and cliques, but a cleaner assignment of versions to cliques. 
+- *Discogs-VI-YT-2-FM* or *DVI2-FM*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.  
 
 # Dataset Creation
 ## Cleanup *Discogs-VI-YT*
@@ -13,7 +15,7 @@ python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs
 #### Finding versions of the same clique with different normalized writers
 This results in new cliques.
 ```
-python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_cliques.json
+python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_clique_map.json
 ```
 #### Create new dataset file
 Remapping of cliques.

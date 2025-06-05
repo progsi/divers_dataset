@@ -20,6 +20,39 @@ def read_json_lines(path: str) -> List[dict]:
         data = [json.loads(line) for line in f]
     return data
 
+def get_random_proxy_with_credentials(username_file: str =  "../proxy_user.txt", 
+                     pw_file: str = "../proxy_pw.txt", 
+                     servers_path: str = "../servers.txt",
+                     blocked_servers_path: str = "../blocked_servers.txt",
+                     port: int = 89) -> str:
+    # get username
+    with open(username_file, "r") as f:
+        user = f.read().strip()
+
+    # get password
+    with open(pw_file, "r") as f:
+        pw = f.read().strip()
+    
+    def clean_server_list(servers: list) -> list:
+        servers = [s.strip().replace("\n", "") for s in servers]
+        servers = [s for s in servers if s.endswith(".com")]
+        return servers
+    
+    # get server list
+    with open(servers_path, "r") as f:
+        servers = clean_server_list(f.readlines())
+    
+    # get blocked servers
+    with open(blocked_servers_path, "r") as f:
+        blocked_servers = clean_server_list(f.readlines())
+    
+    # get random server
+    servers = [s for s in servers if s not in blocked_servers]
+    server = random.choice(servers)
+    
+    print(f"Using proxy: {server}:{port}")
+    return f"https://{user}:{pw}@{server}:{port}"
+
 def get_random_proxy_from_file(file_path: str = "../proxies.txt") -> str:
     """
     Get a random proxy from a file.
@@ -29,13 +62,18 @@ def get_random_proxy_from_file(file_path: str = "../proxies.txt") -> str:
     proxy = random.choice(proxies).strip()
     return f"http://{proxy}"
 
-def get_random_proxy(file_path: str = "../proxies.txt") -> str:
-    proxy_url = get_random_proxy_from_file(file_path)
-    return {
-        "http": proxy_url,
-        # "https": proxy_url.replace("http://", "https://"),
-    }
 
+def get_random_proxy(mode: str = "credentials") -> str:
+    """
+    Get a random proxy from the QuickProxy service.
+    """
+    if mode == "credentials":
+        return get_random_proxy_with_credentials()
+    elif mode == "file":
+        return get_random_proxy_from_file()
+    else:
+        raise NotImplementedError("Mode not implemented. Use 'credentials' or 'file'.")
+    
 def get_search_url_performance(title: str, performer: str) -> str:
     title, performer = title.replace(" ", "%20"), performer.replace(" ", "%20")
     return BASE_URL + f"performance?op_title=contains&title={title}&op_performer=contains&performer={performer}&sort=simplifiedTitle&reverse=0&format=json"
@@ -47,7 +85,7 @@ def search_performance(title: str, performer: str, proxies: dict) -> dict:
 
 def get_performance(perf_id: int, proxies: dict) -> dict:
     url = f"https://api.secondhandsongs.com/performance/{perf_id}"
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, proxies=proxies)
     return response.status_code, json.loads(response.text)
 
 def yield_clique_metadata_unique(data: list):
@@ -90,50 +128,47 @@ def main():
     data = read_json_lines(args.dataset)
     
     unique_cliques = list(yield_clique_metadata_unique(data))
-    
-    shs_enriched_cliques = []
-    
-    for clique in tqdm(unique_cliques, total=len(unique_cliques), desc="Searching SHS..."):
-        clique_id = clique["clique_id"]
-        version_id = clique["version_id"]
-        title = clique["track_title_cleaned"].lower()
-        performer = clique["release_artist_names"][0].lower() 
         
-        collector = {
-            "clique_id": clique_id,
-            "version_id": version_id,
-            "title": title,
-            "performer": performer
-        }
-        
-        # get search results
-        status = None
-        while not (status == 200):
-            status, search_results = search_performance(title, performer, get_random_proxy())
-        collector["shs_search"] = search_results
-        
-        # get performance identifier of first results
-        if search_results.get("resultPage") and len(search_results.get("resultPage")) > 0:
-            perf_id = search_results["resultPage"][0]["uri"].split("/")[-1]
-            collector["perf_id"] = perf_id
+    with open(args.output, 'w') as f:
+        for i, clique in enumerate(unique_cliques):
+            clique_id = clique["clique_id"]
+            version_id = clique["version_id"]
+            title = clique["track_title_cleaned"].lower()
+            performer = clique["release_artist_names"][0].lower() 
             
-            # get performance data
+            collector = {
+                "clique_id": clique_id,
+                "version_id": version_id,
+                "title": title,
+                "performer": performer
+            }
+            
+            # get search results
             status = None
             while not (status == 200):
-                status, performance_data = get_performance(perf_id, get_random_proxy())
-            collector["shs_performance"] = performance_data
+                print(f"Idx: {i}; {round(i/len(unique_cliques)*100,2)}% Searching SHS {title} by {performer}...", end='\n', flush=True)
+                status, search_results = search_performance(title, performer, get_random_proxy())
+            collector["shs_search"] = search_results
             
-            # Append the performance data to the list
-            shs_enriched_cliques.append(collector)
+            # get performance identifier of first results
+            if search_results.get("resultPage") and len(search_results.get("resultPage")) > 0:
+                perf_id = search_results["resultPage"][0]["uri"].split("/")[-1]
+                collector["perf_id"] = perf_id
+                
+                # get performance data
+                status = None
+                while not (status == 200):
+                    print(f"Getting SHS performance for {title} by {performer}...", end='\n', flush=True)
+                    status, performance_data = get_performance(perf_id, get_random_proxy())
+                collector["shs_performance"] = performance_data
+                
+                # Append the performance data to the list
+                f.write(json.dumps(collector) + "\n")
+                
+            else:
+                f.write(json.dumps(collector) + "\n")
+                continue   
             
-        else:
-            shs_enriched_cliques.append(collector)
-            continue   
-            
-        
-    # Write the SHS performances to the output file
-    with open(args.output, 'w') as f:
-        json.dump(shs_enriched_cliques, f, indent=4)
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,10 @@ A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.co
 - *Discogs-VI-YT-2* or *DVI2*: a cleaned version of *DVI* which contains slightly less versions and cliques, but a cleaner assignment of versions to cliques. 
 - *Discogs-VI-YT-2-FM* or *DVI2-FM*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.  
 
+# Requirements
+- the original *DVI* dataset, especially the file `Discogs-VI-YT-20240701.jsonl`
+- installation of the conda environment by running  `conda env create -f env.yaml`
+
 # Dataset Creation
 ## Cleanup *Discogs-VI-YT*
 We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.
@@ -10,17 +14,17 @@ We do the following to cleanup. This should result in a cleaner version of *Disc
 #### Normalizing the writers with an LLM
 Here is an example with the LLM *Qwen3*. The mapping from the CLI parameter to the model is hard-coded in the script.
 ```
-python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers.jsonl --llm qwen
+python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl ndata/aux/norm_writers.jsonl --llm qwen
 ```
 #### Finding versions of the same clique with different normalized writers
 This results in new cliques.
 ```
-python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/norm_writers_qwen.jsonl data/discogs/new_clique_map.json
+python preprocessing/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/norm_writers_qwen.jsonl data/aux/new_clique_map.json
 ```
 #### Create new dataset file
 Remapping of cliques.
 ```
-python preprocessing/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/new_clique_ids.jsonl data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned
+python preprocessing/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/new_clique_map.json data/dataset/dvi_cleaned.jsonl
 ```
 ### Reduce false negatives
 Adaptions etc.
@@ -29,12 +33,12 @@ TBA
 ## Extract titles from Discogs-VI-YT 
 To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
-python preprocessing/get_unique_titles.py data/discogs/Discogs-VI-YT-20240701.jsonl.cleaned data/discogs/one_title_per_clique.json
+python preprocessing/get_unique_titles.py data/dataset/dvi_cleaned.jsonl data/aux/one_title_per_clique.json
 ```
 ## Search on YouTube
 We now search for up to 500 results per clique, using the text query (song title).
 ```
-python preprocessing/search_youtube.py data/discogs/one_title_per_clique.json data/youtube/ 
+python preprocessing/search_youtube.py data/aux/one_title_per_clique.json data/youtube/ 
 ```
 ## Filtering
 ### Exclude dataset matches
@@ -62,15 +66,15 @@ This creates the files `metadata_filtered.jsonl` where only the kept videos afte
 This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
 We also apply some pre-processing steps (see `string_processor.py`) which were also used to generate [MusicUGC-NER](https://github.com/progsi/YTUnCoverLLM/tree/main?tab=readme-ov-file).
 ```
-python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/discogs/one_title_per_clique.json data/matched/full.csv
+python preprocessing/fuzzy_matching.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/one_title_per_clique.json data/matched/full.csv
 ```
 #### Analysis
-From the output file in `data/matched/full.csv`, we analyze the matches with regards to pairs of attributes from *Discogs* and *YouTube* which are matched in the notebook `matching_analysis.ipynb`. Additionally, we split the data into four groups after thresholding the similarity at 80%:
+From the output file in `data/full.csv`, we analyze the matches with regards to pairs of attributes from *Discogs* and *YouTube* which are matched in the notebook `matching_analysis.ipynb`. Additionally, we split the data into four groups after thresholding the similarity at 80%:
 - *both*: *title* and *artist* are matched
 - *only_title*: the cleaned title from *Discogs-VI-YT* matches
 - *only_artist*: any artist is matched using the list of arists from *Discogs*
 - *none*
-For the whole set, this information is written to `data/matched/filtered_types.csv`. We additionally create a sample of 100 videos per group to check manually.
+For the whole set, this information is written to `data/filtered_types.csv`. We additionally create a sample of 100 videos per group to check manually.
 
 Manually checking the sample, we observed that *both* contains references to the work of interest in almost all of the cases (>95%). Additionally, *none* and *only_title* mostly contain references to other works and *only_artist* mostly contain references of works from the same artist related to the work of interest. 
 

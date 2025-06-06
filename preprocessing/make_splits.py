@@ -67,7 +67,6 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
                 content = version
             
             if mp4_dir and not mp4_file_exists(content["youtube_id"], mp4_dir):
-                print(f"Skipping {content['youtube_id']} as MP4 file does not exist in {mp4_dir}")
                 dropped_not_downloaded += 1
                 continue
 
@@ -106,7 +105,7 @@ def main():
                         help="Directory of mp4 files.")
     args = parser.parse_args()
 
-    assert args.mp4_dir is None or os.path.exists(args.mp4_dir), f"Input file {args.input} does not exist."
+    assert args.mp4_dir is None or os.path.exists(args.mp4_dir), f"Input file {args.mp4_dir} does not exist."
     
     print("Loading new dataset...")
     new_dataset = read_jsonl(args.input)

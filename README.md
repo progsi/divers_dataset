@@ -85,7 +85,7 @@ In `make_datasets.ipynb` we make two subsets. First, the full *both* dataset. We
 The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
 Afterwards, we create the splits:
 ```
-python preprocessing/make_splits.py data/dataset/dvi_fn_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
+python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
 ### Make Sub-Datasets
 The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:

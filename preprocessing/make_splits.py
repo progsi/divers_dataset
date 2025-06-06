@@ -12,7 +12,13 @@ def read_jsonl(path: str) -> list:
 def read_json(path: str) -> list:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-    
+
+def mp4_file_exists(youtube_id: str, dir: str) -> bool:
+    """
+    Check if the file for the given YouTube ID exists.
+    """
+    return os.path.exists(os.path.join(dir, youtube_id[:2], f"{youtube_id}.mp4"))
+
 def get_cliques_to_split(discogs_dir: str) -> dict:
     """
     Get mapping from clique_id to split.
@@ -31,12 +37,13 @@ def get_cliques_to_split(discogs_dir: str) -> dict:
             }
     return cliques_to_split
 
-def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content: bool) -> tuple[dict, int]:
+def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content: bool, mp4_dir: str) -> tuple[dict, int]:
     """
     Assign new cliques to train/val/test splits and format content.
     """
     split_map = {"train": defaultdict(list), "val": defaultdict(list), "test": defaultdict(list)}
-    dropped = 0
+    dropped_singleton = 0
+    dropped_not_downloaded = 0
     
     for clique in new_dataset:
         new_clique_id = clique["clique_id"]
@@ -58,6 +65,11 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
                         }
             else:
                 content = version
+            
+            if mp4_dir and not mp4_file_exists(content["youtube_id"], mp4_dir):
+                print(f"Skipping {content['youtube_id']} as MP4 file does not exist in {mp4_dir}")
+                dropped_not_downloaded += 1
+                continue
 
             split_map[split][new_clique_id].append(content)
             assigned_versions.append((split, new_clique_id))
@@ -66,9 +78,9 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
         for split, cid in assigned_versions:
             if len(split_map[split][cid]) < 2:
                 del split_map[split][cid]
-                dropped += 1
+                dropped_singleton += 1
 
-    return split_map, dropped
+    return split_map, dropped_singleton, dropped_not_downloaded
 
 def write_splits(splits: dict, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
@@ -82,19 +94,31 @@ def write_splits(splits: dict, output_dir: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Split the new dataset into train/val/test with formatted content.")
-    parser.add_argument("input", type=str, help="Path to new dataset (JSONL format, output of regrouping).")
-    parser.add_argument("discogs_dir", type=str, help="Directory containing original train/val/test files.")
-    parser.add_argument("output_dir", type=str, help="Directory to save new split files.")
-    parser.add_argument("--use-split-content", action="store_true", help="Use content from original split files instead of input dataset.")
+    parser.add_argument("input", type=str, 
+                        help="Path to new dataset (JSONL format, output of regrouping).")
+    parser.add_argument("discogs_dir", type=str, 
+                        help="Directory containing original train/val/test files.")
+    parser.add_argument("output_dir", type=str, 
+                        help="Directory to save new split files.")
+    parser.add_argument("--use-split-content", action="store_true", 
+                        help="Use content from original split files instead of input dataset.")
+    parser.add_argument("--mp4-dir", type=str, default=None,
+                        help="Directory of mp4 files.")
     args = parser.parse_args()
 
+    assert args.mp4_dir is None or os.path.exists(args.mp4_dir), f"Input file {args.input} does not exist."
+    
     print("Loading new dataset...")
     new_dataset = read_jsonl(args.input)
 
     print("Assigning cliques to splits...")
-    new_splits, dropped = assign_cliques(new_dataset, get_cliques_to_split(args.discogs_dir), args.use_split_content)
+    new_splits, nsingleton, nmissing = assign_cliques(new_dataset, 
+                                         get_cliques_to_split(args.discogs_dir), 
+                                         args.use_split_content,
+                                         args.mp4_dir)
 
-    print(f"Total dropped cliques (not matched or <2 versions): {dropped}")
+    print(f"Total dropped cliques (not matched or <2 versions): {nsingleton}")
+    print(f"Total dropped versions (not downloaded): {nmissing}")
 
     print("Saving split files...")
     write_splits(new_splits, args.output_dir)

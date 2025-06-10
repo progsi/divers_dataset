@@ -24,7 +24,7 @@ def get_cliques_to_split(discogs_dir: str) -> dict:
     Get mapping from clique_id to split.
     """
     cliques_to_split = {}
-    for split in ["train", "val", "test"]:
+    for split in ["train", "valid", "test"]:
         filename = f"{BASE_FILENAME}.{split}"
         path = os.path.join(discogs_dir, filename)
         if not os.path.exists(path):
@@ -41,7 +41,7 @@ def assign_cliques(new_dataset: list, cliques_to_split: dict, use_split_content:
     """
     Assign new cliques to train/val/test splits and format content.
     """
-    split_map = {"train": defaultdict(list), "val": defaultdict(list), "test": defaultdict(list)}
+    split_map = {"train": defaultdict(list), "valid": defaultdict(list), "test": defaultdict(list)}
     dropped_singleton = 0
     dropped_not_downloaded = 0
     

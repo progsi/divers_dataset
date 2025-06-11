@@ -7,6 +7,14 @@ A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.co
 - the original *DVI* dataset, especially the file `Discogs-VI-YT-20240701.jsonl`
 - installation of the conda environment by running  `conda env create -f env.yaml`
 
+# Dataset
+Provided in a separate ressource (TBA).
+We provide the following subsets:
+
+## Prior versions
+- `dvi1.5`: *DVI1.5* partially cleaned *DVI* (only writers with special chars)
+- `dvi`: *DVI* and its matched version
+
 # Dataset Creation
 ## Cleanup *Discogs-VI-YT*
 We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.

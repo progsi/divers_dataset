@@ -1,6 +1,6 @@
 # Discogs-VI-2
 
-The metadata can be found on the [Zenodo page](https://zenodo.org/records/16743529?preview=1&token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjkyOTkxYzE5LWRlY2QtNGQyNS1iZGY5LTA4YzZkMTlhMDdhZCIsImRhdGEiOnt9LCJyYW5kb20iOiIyMTQwMjg5MzQxOTRkMWYwMzBiYzQ0Y2E3NTkzMjM2MSJ9.Enin4GOFGnHDTqKUFKTjlSEW8I_ScJTLr8IvHGO1WRAHIz4aMkGnQKmd7Py_QHSflKOX2A9s-aq2OPlHVcc-6Q))
+The metadata can be found on the [Zenodo page](https://zenodo.org/records/16743529?preview=1&token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjkyOTkxYzE5LWRlY2QtNGQyNS1iZGY5LTA4YzZkMTlhMDdhZCIsImRhdGEiOnt9LCJyYW5kb20iOiIyMTQwMjg5MzQxOTRkMWYwMzBiYzQ0Y2E3NTkzMjM2MSJ9.Enin4GOFGnHDTqKUFKTjlSEW8I_ScJTLr8IvHGO1WRAHIz4aMkGnQKmd7Py_QHSflKOX2A9s-aq2OPlHVcc-6Q)
 
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *Discogs-VI-YT-2* or *DVI2*: a cleaned version of *DVI* which contains slightly less versions and cliques, but a cleaner assignment of versions to cliques. 

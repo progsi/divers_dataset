@@ -88,13 +88,22 @@ Manually checking the sample, we observed that *both* contains references to the
 
 **Based on our analysis we decide to only keep the *both* subset, since it is already large (1.4M videos) and the matching quality is rather high.**
 
-## Make datasets
-In `make_datasets.ipynb` we make two subsets. First, the full *both* dataset. We further create another filtered version were we filter some indicators of official music videos (e.g. *remastered* etc.). 
+## Make splits
+In `make_splits.ipynb` we make two subsets. First, the full *both* dataset. We further create another filtered version were we filter some indicators of official music videos (e.g. *remastered* etc.). 
 The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
 Afterwards, we create the splits:
 ```
 python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
+## Make Torch File for [CLEWS](https://github.com/sony/clews)
+Given a torch file like described in the [CLEWS](https://github.com/sony/clews) repo, and given the YouTube crawl and our Discogs metadata file, we can run:
+
+`python collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32`
+
+Afterwards:
+
+`python enrich_cache_metadata.py --input ../clews/cache/metadata-dvi2fm.pt --output data/metadata-dvi2fm_aux.pt`
+
 ### Make Sub-Datasets
 The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:
 - Version identification 

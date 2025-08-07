@@ -173,6 +173,84 @@ def clean_path_keys(tempo_dict):
         tempo2[new_key] = val
     return tempo2
 
+def deduplicate_youtube_versions(df):
+    # Identify duplicated youtube_ids (more than once)
+    duplicated_ids = df['youtube_id'][df['youtube_id'].duplicated(keep=False)]
+
+    # Filter rows where youtube_id is duplicated and youtube_id == version
+    to_drop = df[
+        df['youtube_id'].isin(duplicated_ids) &
+        (df['youtube_id'] == df['version'])
+    ]
+
+    # Drop those rows
+    df_cleaned = df.drop(to_drop.index)
+
+    return df_cleaned
+
+def filter_non_singleton_cliques(df):
+    """
+    Filter out cliques that have only one entry.
+    """
+    clique_counts = df.groupby("clique").size()
+    non_singleton_cliques = clique_counts[clique_counts > 1].index
+    return df[df["clique"].isin(non_singleton_cliques)]
+
+def deduplicate_false_cliques(df):
+    """here we remove false clique splits where multiple cliques have the same youtube_id"""
+    # Result holder for cleaned rows
+    keep_rows = []
+    grouped = df.groupby('youtube_id', sort=False)
+
+    for youtube_id, group in grouped:
+        if len(group) == 1:
+            keep_rows.append(group)
+        else:
+            clique_counts = group['clique'].value_counts()
+            max_count = clique_counts.max()
+            top_cliques = clique_counts[clique_counts == max_count].index
+            first_clique = group[group['clique'].isin(top_cliques)].iloc[0]['clique']
+            filtered = group[group['clique'] == first_clique]
+            keep_rows.append(filtered)
+
+    # Concatenate all kept groups
+    df_cleaned = pd.concat(keep_rows).reset_index(drop=True)
+
+    return df_cleaned
+
+def get_split_dict(df):
+    """Get the splitdict from the DataFrame."""
+    split_dict = {}
+    for idx, row in tqdm(df.iterrows(), total=len(df)):
+        try:
+            clique, version = idx.split(":")
+        except ValueError:
+            raise ValueError(f"Invalid index format: '{idx}' (expected 'clique:version')")
+        split = row["split"]
+        split_dict.setdefault(split, {}).setdefault(clique, []).append(version)
+    return split_dict
+
+def print_df_summary(df, subset="overall"):
+    if subset != "overall":
+        df = df.query(f"split == '{subset}'")
+    print(f"Summary statistics for {subset}")
+
+    # Column stats
+    stats = []
+    for col in ["clique", "version", "youtube_id"]:
+        unique_count = df[col].nunique()
+        total_count = df[col].count()
+        stats.append(f"{col:<12} | Unique: {unique_count:>7,} | Total: {total_count:>7,}")
+    print("\n".join(stats))
+
+    # Version per clique stats
+    version_per_clique = df.groupby("clique")["version"].nunique()
+    print("\nVersion per clique:")
+    print(f"  Min: {version_per_clique.min():>3}  | Max: {version_per_clique.max():>3}  | "
+          f"Mean: {version_per_clique.mean():>5.2f}  | Median: {version_per_clique.median():>5.2f}  | "
+          f"Std: {version_per_clique.std():>5.2f}")
+    print("=" * 40)
+    
 def main() -> None:
     args = parse_args()
 
@@ -255,12 +333,20 @@ def main() -> None:
     df["cid:vid"] = df.apply(lambda row: row["clique"] + ':' + row["version"], axis=1)
     df = df.drop_duplicates(subset=["cid:vid", "youtube_id"])
     df = df.drop(columns=["clique_id", "version_id"], errors='ignore')
+     # final cleanups
+    df = deduplicate_youtube_versions(df)
+    df = filter_non_singleton_cliques(df)
+    df = deduplicate_false_cliques(df)
+    df = filter_non_singleton_cliques(df)
+    
     metadata_dicts = df.set_index("cid:vid").to_dict(orient="index")
+    
     torch.save({
         "info": metadata_dicts,
         "split": split
     }, args.output)
     print(f"Enriched metadata saved to {args.output}.")
-    
+    print_df_summary(df, subset="overall")
+
 if __name__ == "__main__":
     main()

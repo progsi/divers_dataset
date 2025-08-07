@@ -95,7 +95,7 @@ Afterwards, we create the splits:
 ```
 python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
-## Make Torch File for [CLEWS](https://github.com/sony/clews)
+## Finalize
 Given a torch file like described in the [CLEWS](https://github.com/sony/clews) repo, and given the YouTube crawl and our Discogs metadata file, we can run:
 
 `python collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32`

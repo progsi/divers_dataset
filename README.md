@@ -99,13 +99,13 @@ Afterwards, we create the splits:
 python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
 ## Finalize
-Given a torch file like described in the [CLEWS](https://github.com/sony/clews) repo, and given the YouTube crawl and our Discogs metadata file, we can run:
+Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:
 
 `python collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32`
 
 Afterwards:
 
-`python enrich_cache_metadata.py --input ../clews/cache/metadata-dvi2fm.pt --output data/metadata-dvi2fm_aux.pt`
+`python enrich_cache_metadata.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt`
 
 ### Make Sub-Datasets
 The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:

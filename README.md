@@ -12,12 +12,12 @@ A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.co
 ## Dataset Creation
 ### Requirements
 - the original *DVI* dataset, especially the file `Discogs-VI-YT-20240701.jsonl`
-- capable hardware to run *Qwen3* locally
+- capable hardware to run *Qwen3-30B* locally
 ### Cleanup *Discogs-VI-YT*
 We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.
 #### Reduce false positives
 ##### Normalizing the writers with an LLM
-Here is an example with the LLM *Qwen3*. The mapping from the CLI parameter to the model is hard-coded in the script.
+Here is an example with the LLM *Qwen3-30B*. The mapping from the CLI parameter to the model is hard-coded in the script.
 ```
 python preprocessing/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl ndata/aux/norm_writers.jsonl --llm qwen
 ```
@@ -92,6 +92,14 @@ Afterwards, we create the splits:
 ```
 python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
+### Manual Curation of Concepts
+For these steps, we do not make use of any Python scripts but rather manual annotation and the [GUI version of *Qwen3-30B*](https://chat.qwen.ai/).
+This is described in the paper, but essentially we:
+- rank the 1,000 most frequently occuring n-grams for $n \in \{1,2,3\}
+- label a concept manually (except for artist names)
+- re-iterate through our curated list (e.g., re-group concetps)
+This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), instruments and genres/styles. Next, we translate these using again *Qwen3* with [this prompt](preprocessing/concepts_prompt.md) and write the corresponding files YAML into `data/concepts/.
+
 ### Finalize
 Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:
 

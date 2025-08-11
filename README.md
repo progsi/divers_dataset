@@ -10,6 +10,9 @@ A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.co
 - installation of the conda environment by running  `conda env create -f env.yaml`
 
 ## Dataset Creation
+### Requirements
+- the original *DVI* dataset, especially the file `Discogs-VI-YT-20240701.jsonl`
+- capable hardware to run *Qwen3* locally
 ### Cleanup *Discogs-VI-YT*
 We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.
 #### Reduce false positives

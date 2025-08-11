@@ -1,0 +1,74 @@
+bridge:
+  de:
+  - bridge
+  es:
+  - puente
+  fr:
+  - pont
+  it:
+  - ponte
+  pt:
+  - ponte
+chorus:
+  de:
+  - chorus
+  - refrain
+  es:
+  - coro
+  fr:
+  - refrain
+  it:
+  - chorus
+  - ritornello
+  pt:
+  - refrão
+intro:
+  de:
+  - einleitung
+  - intro
+  es:
+  - intro
+  - introducción
+  fr:
+  - intro
+  - introduction
+  it:
+  - intro
+  - introduzione
+  pt:
+  - intro
+  - introdução
+outro:
+  de:
+  - outro
+  es:
+  - outro
+  fr:
+  - outro
+  it:
+  - outro
+  pt:
+  - outro
+solo:
+  de:
+  - solo
+  es:
+  - solo
+  fr:
+  - solo
+  it:
+  - solo
+  pt:
+  - solo
+verse:
+  de:
+  - strophe
+  - verse
+  es:
+  - verso
+  fr:
+  - couplet
+  it:
+  - strofa
+  pt:
+  - verso

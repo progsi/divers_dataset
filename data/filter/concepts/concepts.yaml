@@ -1,0 +1,578 @@
+acoustic:
+  original:
+  - acoustic
+  es:
+  - acústico
+  fr:
+  - acoustique
+  de:
+  - akustisch
+  it:
+  - acustico
+  pt:
+  - acústico
+background:
+  original:
+  - background
+  - backgrounds
+  - backing
+  es:
+  - con acompañamiento
+  - de fondo
+  fr:
+  - arrière-plan
+  - arrière-plans
+  - avec accompagnement
+  - en fond
+  de:
+  - begleitend
+  - hintergrundmusik
+  - im hintergrund
+  it:
+  - accompagnamento
+  - di sfondo
+  - in sottofondo
+  - retro
+  pt:
+  - acompanhamento
+  - de fundo
+  - em fundo
+cover:
+  original:
+  - cover
+  - cover_by
+  - cover_of
+  - covered
+  - covering
+  - covers
+  - guitar_cover
+  - guitar_covers
+  - interpretation
+  - interpretations
+  es:
+  - interpretaciones
+  - interpretación
+  - versionado
+  - versionando
+  - versiones
+  - versiones de
+  - versiones de guitarra
+  - versión
+  - versión de
+  - versión de guitarra
+  - versión por
+  fr:
+  - en reprise
+  - interprétation
+  - interprétations
+  - reprise
+  - reprise de
+  - reprise par
+  - reprise à la guitare
+  - reprises
+  - reprises de
+  - reprises à la guitare
+  de:
+  - cover
+  - cover von
+  - covering
+  - covers
+  - coverversion
+  - coverversion von
+  - gespielt von
+  - gewartet
+  - gitarren-cover
+  - gitarren-covers
+  - interpretation
+  - interpretationen
+  - interpretiert
+  it:
+  - cover
+  - cover by
+  - cover chitarristica
+  - cover con chitarra
+  - cover di
+  - coverizzando
+  - coverizzare
+  - coverizzato
+  - interpretazione
+  - interpretazioni
+  pt:
+  - cover
+  - cover de guitarra
+  - cover por
+  - coverizado
+  - coverizando
+  - covers
+  - covers de guitarra
+  - interpretação
+  - interpretações
+  - versão de
+  - versões de
+instrumental:
+  original:
+  - instrumental
+  - karaoke
+  - karaoke_version
+  es:
+  - instrumental
+  - karaoke
+  - versión karaoke
+  fr:
+  - instrumental
+  - karaoke
+  - version karaoke
+  de:
+  - instrumental
+  - karaoke
+  - karaoke-version
+  it:
+  - karaoke
+  - strumentale
+  - versione karaoke
+  pt:
+  - instrumental
+  - karaoke
+  - versão karaoke
+live:
+  original:
+  - ao_vivo
+  - concert
+  - festival
+  - festivals
+  - jam
+  - live
+  - live_at
+  - live_in
+  - perform
+  - performance
+  - performances
+  - performed
+  - performed_by
+  - performing
+  - performs
+  - session
+  - sessions
+  - show
+  - showed
+  - showing
+  - shows
+  - tour
+  - tours
+  - vivo
+  es:
+  - actuaciones
+  - actuación
+  - actuado
+  - actuando
+  - actuar
+  - ao vivo
+  - concierto
+  - en estudio
+  - en vivo
+  - en vivo en
+  - festival
+  - festivales
+  - gira
+  - giras
+  - grabado en vivo
+  - grabando en vivo
+  - interpretado
+  - interpretado por
+  - jam
+  - mostrando
+  - presentaciones
+  - sesiones
+  - sesión
+  fr:
+  - ao vivo
+  - concert
+  - diffusion
+  - donner un concert
+  - en concert
+  - en direct
+  - en direct à
+  - en live
+  - enregistrant en direct
+  - enregistré en direct
+  - festival
+  - festivals
+  - improvisation
+  - interprété
+  - interprété par
+  - montré
+  - prestation
+  - prestations
+  - session
+  - sessions
+  - spectacle
+  - spectacles
+  - tournée
+  - tournées
+  de:
+  - ao vivo
+  - aufgeführt
+  - aufgeführt von
+  - auftreten
+  - auftritt
+  - festival
+  - festivals
+  - gezeigt
+  - jam-session
+  - konzert
+  - live
+  - live auftritt
+  - live bei
+  - live in
+  - live-aufnahmen
+  - live-einspielungen
+  - live-mitschnitte
+  - performance
+  - performances
+  - session
+  - sessions
+  - show
+  - shows
+  - tournee
+  - tourneen
+  - vorführung
+  it:
+  - ao vivo
+  - concerto
+  - dal vivo
+  - dal vivo a
+  - esecuzioni live
+  - eseguendo
+  - eseguito
+  - eseguito da
+  - esibirsi
+  - esibizione
+  - esibizioni
+  - festival
+  - in diretta
+  - jam session
+  - mostrato
+  - registrato dal vivo
+  - registrazione dal vivo
+  - session
+  - sessioni
+  - spettacoli
+  - spettacolo
+  - tour
+  - trasmissione
+  pt:
+  - ao vivo
+  - ao vivo em
+  - apresentado
+  - apresentado por
+  - apresentando
+  - apresentar
+  - apresentações
+  - concerto
+  - exibindo
+  - festivais
+  - festival
+  - gravado ao vivo
+  - gravando ao vivo
+  - jam session
+  - mostrado
+  - performance
+  - performances
+  - sessão
+  - sessões
+  - show
+  - shows
+  - turnê
+  - turnês
+  - vídeos ao vivo
+professional:
+  original:
+  - auto_generated
+  - generated_by_youtube
+  es:
+  - generado automáticamente
+  - generado por YouTube
+  fr:
+  - automatique
+  - en train de générer
+  - généré automatiquement
+  - généré par YouTube
+  de:
+  - automatisch generiert
+  - von youtube generiert
+  it:
+  - auto generato
+  - generato automaticamente
+  - generato da YouTube
+  pt:
+  - auto gerado
+  - gerado automaticamente
+  - gerado pelo YouTube
+remix:
+  original:
+  - mashup
+  - mashups
+  - remix
+  es:
+  - mashup
+  - mashups
+  - remix
+  fr:
+  - mashup
+  - mashups
+  - remix
+  de:
+  - mashup
+  - mashups
+  - remix
+  it:
+  - mashup
+  - mashups
+  - remix
+  pt:
+  - mashup
+  - mashups
+  - remix
+secondary:
+  original:
+  - analysis
+  - first_time
+  - reaction
+  - reactions
+  - review
+  - reviewed
+  - reviewing
+  - reviews
+  es:
+  - análisis
+  - primera
+  - primera vez
+  - reacciones
+  - reacción
+  - reseña
+  - reseñado
+  - reseñando
+  - reseñas
+  fr:
+  - analyse
+  - critique
+  - critiques
+  - critiqué
+  - en critique
+  - première
+  - première fois
+  - réaction
+  - réactions
+  de:
+  - analyse
+  - erste
+  - erste hörerfahrung
+  - erstmals
+  - reaktion
+  - reaktionen
+  - rezensiert
+  - rezension
+  - rezensionen
+  it:
+  - analisi
+  - prima volta
+  - primo
+  - reazione
+  - reazioni
+  - recensione
+  - recensioni
+  - recensito
+  pt:
+  - análise
+  - primeira vez
+  - primeiro
+  - reação
+  - reações
+  - resenha
+  - resenhado
+  - resenhando
+  - resenhas
+studio:
+  original:
+  - letra
+  - letras
+  - lyric
+  - lyrics
+  - master
+  - mastered
+  - mastering
+  - masters
+  - music_video
+  - music_videos
+  - official
+  - officials
+  - radio
+  - radios
+  - remastere
+  - remastered
+  - remastereed
+  - remastereing
+  - remasteres
+  - studio
+  - studios
+  - with_lyric
+  - with_lyrics
+  es:
+  - con letra
+  - estudio
+  - estudios
+  - letra
+  - letras
+  - maestro
+  - maestros
+  - masterización
+  - masterizado
+  - oficial
+  - radio
+  - remasterizado
+  - video musical
+  - videos musicales
+  fr:
+  - avec parole
+  - avec paroles
+  - mastering
+  - masterisé
+  - maître
+  - maîtres
+  - officiel
+  - parole
+  - paroles
+  - radio
+  - remasterisé
+  - studio
+  - studios
+  - vidéo musicale
+  - vidéos musicales
+  de:
+  - gemastert
+  - lyrics
+  - lyrik
+  - master
+  - mastering
+  - mit lyrics
+  - mit lyrik
+  - musikvideo
+  - musikvideos
+  - offiziell
+  - radio
+  - radios
+  - remaster
+  - remastered
+  - remastering
+  - remastern
+  - remastert
+  - studio
+  - studios
+  - text
+  - texte
+  it:
+  - con testo
+  - maestro
+  - masterizzato
+  - masterizzazione
+  - parola
+  - parole
+  - radio
+  - rimasterizzato
+  - studi
+  - studio
+  - testo
+  - ufficiale
+  - video musicale
+  - video musicali
+  pt:
+  - com letra
+  - estúdio
+  - estúdios
+  - letra
+  - letras
+  - master
+  - masterizado
+  - masterização
+  - masters
+  - oficial
+  - remasterizado
+  - rádio
+  - rádios
+  - vídeo musical
+  - vídeos musicais
+tutorial:
+  original:
+  - chord
+  - chords
+  - guitar_lesson
+  - how_to_play
+  - how_to_played
+  - how_to_playing
+  - how_to_plays
+  - instruction
+  - instructions
+  - lesson
+  - lessons
+  - to_play
+  - to_plays
+  - tutorial
+  - tutorials
+  es:
+  - acorde
+  - acordes
+  - clase
+  - clase de guitarra
+  - clases
+  - cómo tocar
+  - instrucciones
+  - instrucción
+  - para tocar
+  - tutorial
+  - tutoriales
+  fr:
+  - accord
+  - accords
+  - comment jouer
+  - cours
+  - cours de guitare
+  - instruction
+  - instructions
+  - tutorial
+  - tutoriels
+  - à jouer
+  de:
+  - akkord
+  - akkorde
+  - anleitung
+  - anweisung
+  - gitarrenunterricht
+  - tutorial
+  - tutorials
+  - unterricht
+  - unterrichtsstunden
+  - wie spielt man
+  - zum spielen
+  it:
+  - accordi
+  - accordo
+  - come suonare
+  - da suonare
+  - istruzione
+  - istruzioni
+  - lezione
+  - lezione di chitarra
+  - lezioni
+  - tutorial
+  pt:
+  - acorde
+  - acordes
+  - aula
+  - aula de guitarra
+  - aulas
+  - como tocar
+  - instrução
+  - instruções
+  - para tocar
+  - tutoriais
+  - tutorial

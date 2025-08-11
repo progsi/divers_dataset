@@ -1,0 +1,525 @@
+acoustic_guitar:
+  original:
+    - acoustic_guitar
+    - acoustic_guitars
+  es:
+    - guitarra acústica
+    - guitarras acústicas
+  fr:
+    - guitare acoustique
+    - guitares acoustiques
+  de:
+    - akustikgitarre
+    - akustikgitarren
+  pt:
+    - guitarra acústica
+    - guitarras acústicas
+  it:
+    - chitarra acustica
+    - chitarre acustiche
+
+band:
+  original:
+    - band
+    - bands
+    - banda
+    - bandas
+    - the_band
+  es:
+    - banda
+    - bandas
+  fr:
+    - groupe
+    - groupes
+    - banda
+  de:
+    - band
+    - bands
+    - banda
+  pt:
+    - banda
+    - bandas
+  it:
+    - banda
+    - gruppo
+    - bande
+
+bass:
+  original:
+    - bass
+    - bass_guitar
+  es:
+    - bajo
+    - guitarra baja
+  fr:
+    - basse
+    - guitare basse
+  de:
+    - bass
+    - bassgitarre
+  pt:
+    - baixo
+    - baixo elétrico
+  it:
+    - basso
+    - basso elettrico
+
+drum:
+  original:
+    - drum
+    - drums
+    - drummed
+    - drumming
+  es:
+    - tambor
+    - batería
+    - baterizado
+    - baterizando
+  fr:
+    - batterie
+    - tambour
+    - battu
+    - en train de battre
+  de:
+    - trommel
+    - drums
+    - gedrummed
+    - drumming
+  pt:
+    - tambor
+    - bateria
+    - baterizado
+    - baterizando
+  it:
+    - tamburo
+    - batteria
+    - batteriato
+    - suonare la batteria
+
+electric_guitar:
+  original:
+    - electric_guitar
+  es:
+    - guitarra eléctrica
+  fr:
+    - guitare électrique
+  de:
+    - e-gitarre
+  pt:
+    - guitarra elétrica
+  it:
+    - chitarra elettrica
+
+guitar:
+  original:
+    - guitar
+    - guitars
+    - guitarra
+    - guitarras
+    - guitarrist
+  es:
+    - guitarra
+    - guitarras
+    - guitarreado
+    - guitarreando
+    - guitarrista
+  fr:
+    - guitare
+    - guitares
+    - guitarré
+    - en train de guitarrer
+  de:
+    - gitarre
+    - gitarren
+    - gitarrist
+    - gitarristin
+  pt:
+    - guitarra
+    - guitarras
+    - guitarreado
+    - guitarreando
+  it:
+    - chitarra
+    - chitarre
+    - guitarraato
+    - guitarraando
+
+keyboard:
+  original:
+    - keyboard
+    - keyboards
+    - keyboarder
+  es:
+    - teclado
+    - teclados
+  fr:
+    - clavier
+    - claviers
+  de:
+    - keyboard
+    - keyboards
+  pt:
+    - teclado
+    - teclados
+  it:
+    - tastiera
+    - tastiere
+
+orchestra:
+  original:
+    - orchestra
+    - orchestre
+    - orchestres
+    - orquesta
+    - orchestras
+    - his_orchestra
+    - and_his_orchestra
+  es:
+    - orquesta
+    - orquestas
+    - su orquesta
+    - y su orquesta
+  fr:
+    - orchestre
+    - orchestres
+    - son orchestre
+    - et son orchestre
+  de:
+    - orchester
+    - sein orchester
+    - und seine orchester
+  pt:
+    - orquestra
+    - orquestras
+    - sua orquestra
+    - e sua orquestra
+  it:
+    - orchestra
+    - orchestre
+    - la sua orchestra
+    - e la sua orchestra
+
+organ:
+  original:
+    - organ
+    - organs
+  es:
+    - órgano
+    - órganos
+  fr:
+    - orgue
+    - orgues
+  de:
+    - orgel
+    - orgeln
+  pt:
+    - órgão
+    - órgãos
+  it:
+    - organo
+    - organi
+
+percussion:
+  original:
+    - percussion
+    - percussions
+    - percussionist
+  es:
+    - percusión
+    - percusiones
+    - percusionista
+  fr:
+    - percussion
+    - percussions
+    - percussionniste
+  de:
+    - percussion
+    - percussionen
+    - percussionist
+  pt:
+    - percussão
+    - percussões
+    - percussionista
+  it:
+    - percussione
+    - percussioni
+    - percussionista
+
+piano:
+  original:
+    - piano
+    - pianos
+    - pianist
+  es:
+    - piano
+    - pianos
+  fr:
+    - piano
+    - pianos
+  de:
+    - klavier
+    - klaviere
+    - klavierspieler
+    - klavierspielerin
+  pt:
+    - piano
+    - pianos
+  it:
+    - pianoforte
+    - pianoforti
+
+quartet:
+  original:
+    - quartet
+  es:
+    - cuarteto
+  fr:
+    - quatuor
+  de:
+    - quartett
+  pt:
+    - quarteto
+  it:
+    - quartetto
+
+sax:
+  original:
+    - sax
+    - saxophone
+    - saxophones
+    - saxs
+    - tenor_saxophone
+    - tenor
+  es:
+    - saxo
+    - saxofón
+    - saxofones
+    - saxes
+    - saxofón tenor
+    - tenor
+  fr:
+    - sax
+    - saxophone
+    - saxophones
+    - saxos
+    - saxophone ténor
+    - ténor
+  de:
+    - sax
+    - saxophon
+    - saxophone
+    - saxe
+    - tenorsaxophon
+    - tenor
+  pt:
+    - sax
+    - saxofone
+    - saxofones
+    - saxes
+    - saxofone tenor
+    - tenor
+  it:
+    - sax
+    - saxofono
+    - saxofoni
+    - sax
+    - sax tenore
+    - tenore
+
+songwriter:
+  original:
+    - songwriter
+    - songwriters
+  es:
+    - compositor
+    - compositores
+  fr:
+    - auteur-compositeur
+    - auteurs-compositeurs
+  de:
+    - songschreiber
+    - songschreiber
+  pt:
+    - compositor
+    - compositores
+  it:
+    - compositore
+    - compositori
+
+string:
+  original:
+    - string
+    - strings
+    - violin
+    - viola
+    - violao
+  es:
+    - cuerda
+    - cuerdas
+    - violín
+    - viola
+    - violão
+  fr:
+    - corde
+    - cordes
+    - violon
+    - alto
+    - violão
+  de:
+    - saite
+    - saiten
+    - violine
+    - viola
+    - violões
+  pt:
+    - corda
+    - cordas
+    - violino
+    - viola
+    - violão
+  it:
+    - corda
+    - corde
+    - violino
+    - viola
+    - violões
+
+trio:
+  original:
+    - trio
+  es:
+    - trío
+  fr:
+    - trio
+  de:
+    - trio
+  pt:
+    - trio
+  it:
+    - trio
+
+trumpet:
+  original:
+    - trumpet
+    - trumpets
+    - trumpeter
+  es:
+    - trompeta
+    - trompetas
+    - trompetista
+  fr:
+    - trompette
+    - trompettes
+    - trompettiste
+  de:
+    - trompete
+    - trompeten
+    - trompeter
+  pt:
+    - trompete
+    - trompetas
+    - trompetista
+  it:
+    - tromba
+    - trombe
+    - trombettista
+
+vocal:
+  original:
+    - backing_vocal
+    - backing_vocals
+    - background_vocal
+    - canta
+    - cantor
+    - sing
+    - singer
+    - singers
+    - singed
+    - singing
+    - sings
+    - vocal
+    - vocalist
+    - vocalists
+    - voice
+    - voices
+    - voz
+  es:
+    - canta
+    - cantado
+    - cantante
+    - cantantes
+    - cantan
+    - cantando
+    - cantar
+    - vocal
+    - vocal de apoyo
+    - vocal de fondo
+    - vocales
+    - vocales de apoyo
+    - vocalista
+    - vocalistas
+    - voz
+    - voces
+  fr:
+    - chanté
+    - chante
+    - chanteur
+    - chanteurs
+    - chanter
+    - chantent
+    - en train de chanter
+    - vocaux
+    - vocal
+    - vocal de fond
+    - vocal de soutien
+    - voix
+    - voix off
+  de:
+    - backvocal
+    - backvocals
+    - gesungen
+    - hintergrundgesang
+    - sänger
+    - sängerin
+    - singen
+    - singt
+    - stimme
+    - stimmen
+    - vocal
+    - vokalist
+    - vokalisten
+    - vocals
+  pt:
+    - canta
+    - cantado
+    - cantam
+    - cantando
+    - cantar
+    - cantor
+    - cantores
+    - vocal
+    - vocal de apoio
+    - vocal de fundo
+    - vocalista
+    - vocalistas
+    - vocais
+    - vocais de apoio
+    - voz
+    - vozes
+  it:
+    - canta
+    - cantante
+    - cantanti
+    - cantando
+    - cantano
+    - cantare
+    - cantato
+    - vocale
+    - vocal di supporto
+    - vocali
+    - vocali di supporto
+    - vocalista
+    - vocalisti
+    - voce
+    - voce in sottofondo
+    - voci

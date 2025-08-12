@@ -11,10 +11,9 @@ st.set_page_config(layout="wide")
 
 # Columns to display
 DISPLAY_COLS = [
-    'clique', 'version', 'artist', 'title',
-    'release_artist_names', 'release_genres', 'release_styles',
-    'country', 'labels', 'matched_instruments_groups', 'matched_concepts',
-    'subset', 'is_discogs', 'tempo'
+    'clique', 'version', 'title', 'subset',  
+    'artist', 'year', 'genres', 'styles', 'country', 
+    'instruments_groups', 'matched_concepts', 'tempo',  
 ]
 
 ############### Preprocessing Functions ###############
@@ -87,6 +86,7 @@ def load_dataset(path):
     is_discogs = ~df.apply(lambda x: x.youtube_id in x.version, axis=1)
     df["data_source"] = is_discogs.map({True: "Discogs", False: "YouTube"})
     
+    df["year"] = df.released.fillna("?") 
     df["country"] = df.country.fillna("?")
     df["writers"] = df.track_writer_names.apply(join_list)
     df["genres"] = df.release_genres.apply(join_list)
@@ -95,7 +95,8 @@ def load_dataset(path):
     # additional
     df["concepts"] = df["matched_concepts"].apply(lambda x: get_concept_str(x, cues=True))
     df["instruments_groups"] = df["matched_instruments_groups"].apply(lambda x: get_concept_str(x, cues=False))
-    
+    df["segments"] = df["matched_segments"].apply(lambda x: get_concept_str(x, cues=False))
+
     return df, meta  
 
 ##################### Streamlit App #####################
@@ -132,8 +133,8 @@ def text_filter(df, column):
 # Apply filters one by one
 filtered_df = df.copy()
 for col in ["title", "split", "data_source",
-            "artist", "released", "writers", "genres", "styles",
-            "concepts", "instruments_groups"]:
+            "artist", "writers", "year", "country", "genres", "styles",
+            "concepts", "instruments_groups", "segments"]:
     if col in ["title", "genres", "styles", "concepts"]:
         filtered_df = text_filter(filtered_df, col)  # free text search for these
     else:
@@ -143,41 +144,54 @@ tab1, tab2 = st.tabs(["Version Explorer", "Clique Explorer"])
 
 # TAB 1: Random Version
 with tab1:
-    # Fetch a random version
+    if filtered_df.empty:
+        st.warning("No entries match your filters.")
+        st.stop()
+
+    # Always show the button
+    if st.button("Pick another random version"):
+        # Pick a new random version and save it in session_state
+        random_idx = random.randint(0, len(filtered_df) - 1)
+        st.session_state.selected_version = filtered_df.iloc[random_idx]["version"]
+        st.experimental_rerun()
+
+    # Use selected_version if set, else pick a random one (once)
     if "selected_version" in st.session_state:
-        # Show selected version from tab 2 click
         version_id = st.session_state.selected_version
-        row = df[df["version"] == version_id].iloc[0]
+        row = df[df["version"] == version_id]
+        if row.empty:
+            st.warning("Selected version not found after filtering.")
+            # Fallback: pick random
+            random_idx = random.randint(0, len(filtered_df) - 1)
+            row = filtered_df.iloc[[random_idx]]
+            st.session_state.selected_version = row.iloc[0]["version"]
+        row = row.iloc[0]
     else:
-        if st.button("Pick another random version"):
-            st.rerun()
-        if filtered_df.empty:
-            st.warning("No entries match your filters.")
-            st.stop()
+        # Initialize selected_version with a random version
         random_idx = random.randint(0, len(filtered_df) - 1)
         row = filtered_df.iloc[random_idx]
+        st.session_state.selected_version = row["version"]
+
+    # Display info
     st.subheader(f"*{row.title}*")
-    
+
     col1, col2, col3 = st.columns(3)
-    # Overall data
     with col1:
         st.write(f"**Clique-ID:** {row.clique}")
         st.write(f"**Version-ID:** {row.version}")
         st.write(f"**Subset:** {row.subset}")
         st.write(f"**Data Source:** {row.data_source}")
-    
-    # Discogs metadata
+
     with col2:
-        st.write(f"**Artist(s):** {row.artist}")
-        st.write(f"**Release Countries:** {row.country}")
-        st.write(f"**Genres:** {row.genres}")
-        st.write(f"**Styles:** {row.styles}")
-    
-    # Extracted and matched
+        st.write(f"**Artist:** {row.artist}")
+        st.write(f"**Country:** {row.country}")
+        st.write(f"**Genre:** {row.genres}")
+        st.write(f"**Style:** {row.styles}")
+
     with col3:
-        st.write(f"**Concepts:** {row.concepts}")
-        instruments = []
-        st.write(f"**Instruments/Groups:** {row.instruments_groups}")
+        st.write(f"**Concept:** {row.concepts}")
+        st.write(f"**Instrument/Group:** {row.instruments_groups}")
+        st.write(f"**Segment:** {row.segments}")
         st.write(f"**Tempo:** {round(row.tempo, 2)} BPM")
 
     youtube_id = row.get("youtube_id", None)
@@ -186,33 +200,43 @@ with tab1:
         st.video(youtube_url)
     else:
         st.info("No YouTube video available for this entry.")
-
+        
 # TAB 2: Random Clique
 with tab2:
-    st.subheader("🎲 Random Clique")
+    # Initialize selected_version if missing
+    if "selected_version" not in st.session_state:
+        st.session_state.selected_version = df.iloc[0]["version"]
 
-    if st.button("Pick another random clique"):
-        st.session_state.pop("selected_version", None)
-        st.rerun()
+    selected_version = st.session_state.selected_version
 
-    # Pick a random clique
-    random_clique = random.choice(df["clique"].unique())
-    clique_df = df[df["clique"] == random_clique]
+    # Get row and clique info
+    row = df[df["version"] == selected_version]
+    if row.empty:
+        st.error("Selected version not found in the dataset.")
+        st.stop()
+    row = row.iloc[0]
 
-    st.markdown(f"**Clique:** `{random_clique}`")
+    selected_clique = row.clique
+    clique_df = df[df["clique"] == selected_clique]
+
+    # Find first Discogs title or fallback
+    discogs_titles = clique_df[clique_df["dvi"] == True]["title"]
+    clique_title = discogs_titles.iloc[0] if not discogs_titles.empty else "N/A"
+
+    # Show clique title as subheader
+    st.subheader(f"*{clique_title}*")
+
+    st.markdown(f"**Clique:** `{selected_clique}`")
     st.markdown(f"- **Number of versions:** {len(clique_df)}")
-    most_freq_title = clique_df["title"].mode().iloc[0] if not clique_df["title"].mode().empty else "N/A"
-    st.markdown(f"- **Most frequent title:** {most_freq_title}")
 
-    # Random YouTube video from clique
-    sample_row = clique_df.sample(1).iloc[0]
-    if pd.notna(sample_row["youtube_id"]):
-        st.video(f"https://www.youtube.com/watch?v={sample_row['youtube_id']}")
+    # Select version from the clique, default to current selected_version
+    versions_list = clique_df["version"].tolist()
+    try:
+        default_idx = versions_list.index(selected_version)
+    except ValueError:
+        default_idx = 0
 
-    # Select version to view in tab1
-    selected_version = st.selectbox(
-        "Select a version to view in detail:",
-        clique_df["version"].tolist()
-    )
+    display_df = clique_df[DISPLAY_COLS].rename(columns={col: prettify_column_name(col) for col in DISPLAY_COLS})
+    st.dataframe(display_df)
 
-    #st.dataframe(clique_df[DISPLAY_COLS])
+    

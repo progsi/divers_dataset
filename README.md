@@ -95,7 +95,7 @@ python preprocessing/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/disc
 ### Manual Curation of Concepts
 For these steps, we do not make use of any Python scripts but rather manual annotation and the [GUI version of *Qwen3-30B*](https://chat.qwen.ai/).
 This is described in the paper, but essentially we:
-- rank the 1,000 most frequently occuring n-grams for $n \in \{1,2,3\}
+- rank the 1,000 most frequently occuring $n$-grams for $n \in \{1,2,3\}$
 - label a concept manually (except for artist names)
 - re-iterate through our curated list (e.g., re-group concetps)
 This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), instruments and genres/styles. Next, we translate these using again *Qwen3* with [this prompt](preprocessing/concepts_prompt.md) and write the corresponding files YAML into `data/concepts/.

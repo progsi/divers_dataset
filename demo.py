@@ -1,10 +1,13 @@
 # demo.py
 import argparse
+import ast
 import os
 import json
 import streamlit as st
 import pandas as pd
 import random
+
+st.set_page_config(layout="wide")
 
 # Columns to display
 DISPLAY_COLS = [
@@ -13,6 +16,46 @@ DISPLAY_COLS = [
     'country', 'labels', 'matched_instruments_groups', 'matched_concepts',
     'subset', 'is_discogs', 'tempo'
 ]
+
+############### Preprocessing Functions ###############
+
+def join_list(lst):
+    if isinstance(lst, str):
+        lst = ast.literal_eval(lst)
+    elif isinstance(lst, float):
+        return "?"
+    return ", ".join(lst)
+
+def join_styles(styles):
+    if isinstance(styles, str):
+        styles = ast.literal_eval(styles)
+    elif isinstance(styles, float):
+        return "?"
+    styles = [style[1] for style in styles]
+    return ", ".join(styles)
+
+def get_concept_str(concept_dict, cues=False):
+    concept_to_cues = {}
+
+    for field, matches in concept_dict.items():
+        for concept, cue in matches.items():
+            concept_cap = concept.title()
+            if concept_cap not in concept_to_cues:
+                concept_to_cues[concept_cap] = set()
+            if cues and cue is not None:
+                concept_to_cues[concept_cap].add(cue)
+
+    concept_strs = []
+    for concept, cue_set in concept_to_cues.items():
+        if cues and cue_set:
+            cue_list = sorted(cue_set)  # sorted for consistent output
+            concept_strs.append(f"{concept} ({', '.join(cue_list)})")
+        else:
+            concept_strs.append(concept)
+
+    return ", ".join(concept_strs) if concept_strs else "(None)"
+
+##################### Load Dataset Function ###############
 
 @st.cache_data
 def load_dataset(path):
@@ -36,15 +79,26 @@ def load_dataset(path):
 
     df = pd.DataFrame.from_dict(info, orient="index")
     clique2split = inverse_split_dict(split)
-    df["subset"] = df["clique"].map(clique2split).str.capitalize()
+    df["subset"] = df["clique"].map(clique2split).str.title()
     
     if "youtube_id" not in df.columns:
         df["youtube_id"] = df.filename.apply(lambda x: x.split("/")[-1].split(".")[0])
     
-    df["is_discogs"] = ~df.apply(lambda x: x.youtube_id in x.version, axis=1)
+    is_discogs = ~df.apply(lambda x: x.youtube_id in x.version, axis=1)
+    df["data_source"] = is_discogs.map({True: "Discogs", False: "YouTube"})
+    
+    df["country"] = df.country.fillna("?")
+    df["writers"] = df.track_writer_names.apply(join_list)
+    df["genres"] = df.release_genres.apply(join_list)
+    df["styles"] = df.release_styles.apply(join_styles)
+
+    # additional
+    df["concepts"] = df["matched_concepts"].apply(lambda x: get_concept_str(x, cues=True))
+    df["instruments_groups"] = df["matched_instruments_groups"].apply(lambda x: get_concept_str(x, cues=False))
     
     return df, meta  
 
+##################### Streamlit App #####################
 
 # CLI arguments ----
 parser = argparse.ArgumentParser(description="Run the Streamlit app.")
@@ -57,15 +111,39 @@ args = parser.parse_args()
 # Load Data ----
 df, meta = load_dataset(args.json_file)
 
-st.set_page_config(page_title="Dataset Explorer", layout="wide")
-st.title("🎵 Dataset Explorer")
+st.sidebar.header("Filters")
 
-tab1, tab2 = st.tabs(["Random Version", "Random Clique"])
+def prettify_column_name(col_name):
+    return col_name.replace("_", " ").title()
+
+def multiselect_filter(df, column):
+    options = sorted(df[column].dropna().unique())
+    selected = st.sidebar.multiselect(prettify_column_name(column), options)
+    if selected:
+        return df[df[column].isin(selected)]
+    return df
+
+def text_filter(df, column):
+    text = st.sidebar.text_input(prettify_column_name(column))
+    if text:
+        return df[df[column].str.contains(text, case=False, na=False)]
+    return df
+
+# Apply filters one by one
+filtered_df = df.copy()
+for col in ["title", "split", "data_source",
+            "artist", "released", "writers", "genres", "styles",
+            "concepts", "instruments_groups"]:
+    if col in ["title", "genres", "styles", "concepts"]:
+        filtered_df = text_filter(filtered_df, col)  # free text search for these
+    else:
+        filtered_df = multiselect_filter(filtered_df, col)  # choose from available options
+
+tab1, tab2 = st.tabs(["Version Explorer", "Clique Explorer"])
 
 # TAB 1: Random Version
 with tab1:
-    st.subheader("🎲 Random Version")
-
+    # Fetch a random version
     if "selected_version" in st.session_state:
         # Show selected version from tab 2 click
         version_id = st.session_state.selected_version
@@ -73,10 +151,34 @@ with tab1:
     else:
         if st.button("Pick another random version"):
             st.rerun()
-        random_idx = random.randint(0, len(df) - 1)
-        row = df.iloc[random_idx]
-
-    st.write(row[DISPLAY_COLS])
+        if filtered_df.empty:
+            st.warning("No entries match your filters.")
+            st.stop()
+        random_idx = random.randint(0, len(filtered_df) - 1)
+        row = filtered_df.iloc[random_idx]
+    st.subheader(f"*{row.title}*")
+    
+    col1, col2, col3 = st.columns(3)
+    # Overall data
+    with col1:
+        st.write(f"**Clique-ID:** {row.clique}")
+        st.write(f"**Version-ID:** {row.version}")
+        st.write(f"**Subset:** {row.subset}")
+        st.write(f"**Data Source:** {row.data_source}")
+    
+    # Discogs metadata
+    with col2:
+        st.write(f"**Artist(s):** {row.artist}")
+        st.write(f"**Release Countries:** {row.country}")
+        st.write(f"**Genres:** {row.genres}")
+        st.write(f"**Styles:** {row.styles}")
+    
+    # Extracted and matched
+    with col3:
+        st.write(f"**Concepts:** {row.concepts}")
+        instruments = []
+        st.write(f"**Instruments/Groups:** {row.instruments_groups}")
+        st.write(f"**Tempo:** {round(row.tempo, 2)} BPM")
 
     youtube_id = row.get("youtube_id", None)
     if pd.notna(youtube_id):
@@ -113,4 +215,4 @@ with tab2:
         clique_df["version"].tolist()
     )
 
-    st.dataframe(clique_df[DISPLAY_COLS])
+    #st.dataframe(clique_df[DISPLAY_COLS])

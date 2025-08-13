@@ -11,9 +11,9 @@ st.set_page_config(layout="wide")
 
 # Columns to display
 DISPLAY_COLS = [
-    'clique', 'version', 'title', 'subset',  
+    'clique', 'version', 'title', 'data_source',
     'artist', 'year', 'genres', 'styles', 'country', 
-    'instruments_groups', 'matched_concepts', 'tempo',  
+    'concepts', 'instruments_groups', 'segments', 'tempo',  
 ]
 
 ############### Preprocessing Functions ###############
@@ -112,33 +112,94 @@ args = parser.parse_args()
 # Load Data ----
 df, meta = load_dataset(args.json_file)
 
-st.sidebar.header("Filters")
 
 def prettify_column_name(col_name):
     return col_name.replace("_", " ").title()
 
+# Your filter functions without color param and without colored header
 def multiselect_filter(df, column):
     options = sorted(df[column].dropna().unique())
-    selected = st.sidebar.multiselect(prettify_column_name(column), options)
+    selected = st.sidebar.multiselect(column.replace('_', ' ').title(), options, key=f"multiselect_{column}")
     if selected:
         return df[df[column].isin(selected)]
     return df
 
 def text_filter(df, column):
-    text = st.sidebar.text_input(prettify_column_name(column))
+    text = st.sidebar.text_input(column.replace('_', ' ').title(), key=f"textinput_{column}")
     if text:
         return df[df[column].str.contains(text, case=False, na=False)]
     return df
 
-# Apply filters one by one
+color_general = "#D55E00"  
+color_discogs = "#0072B2"  
+color_enriched = "#009E73" 
+
+# Reverse map: color → list of columns
+color_groups = {
+    color_general: [
+        "title", "subset", "data_source"
+    ],
+    color_discogs: [
+        "artist", "writers", "year", "country", "genres", "styles"
+    ],
+    color_enriched: [
+        "concepts", "instruments_groups", "segments", "tempo"
+    ],
+}
+
+def filter_group_box(title, color, columns, df):
+    # Calculate approx height per filter (adjust as needed)
+    approx_height_per_filter = 60  # px; guess based on typical widget height
+
+    n_filters = len(columns)
+    total_height = approx_height_per_filter * n_filters + 50  # extra padding for title etc
+
+    # Colored "box" div with padding + border-radius wrapping approx the whole group
+    st.sidebar.markdown(
+        f"""
+        <div style="
+            background-color: {color};
+            padding: 15px 15px 15px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            position: relative;
+        ">
+            {title}
+            <div style="
+                position: absolute;
+                top: 40px;
+                left: 0;
+                width: 100%;
+                height: {total_height}px;
+                pointer-events: none;  /* so clicks go through */
+                border-radius: 0 0 10px 10px;
+                background-color: {color};
+                opacity: 0.2;
+                z-index: -1;
+            "></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    filtered = df.copy()
+    for col in sorted(columns):
+        if col in ["title", "genres", "styles", "concepts"]:
+            filtered = text_filter(filtered, col)
+        else:
+            filtered = multiselect_filter(filtered, col)
+
+    return filtered
+
+
 filtered_df = df.copy()
-for col in ["title", "split", "data_source",
-            "artist", "writers", "year", "country", "genres", "styles",
-            "concepts", "instruments_groups", "segments"]:
-    if col in ["title", "genres", "styles", "concepts"]:
-        filtered_df = text_filter(filtered_df, col)  # free text search for these
-    else:
-        filtered_df = multiselect_filter(filtered_df, col)  # choose from available options
+
+filtered_df = filter_group_box("General Filters", color_general, color_groups[color_general], filtered_df)
+filtered_df = filter_group_box("Discogs Filters", color_discogs, color_groups[color_discogs], filtered_df)
+filtered_df = filter_group_box("Enriched Filters", color_enriched, color_groups[color_enriched], filtered_df)
 
 tab1, tab2 = st.tabs(["Version Explorer", "Clique Explorer"])
 
@@ -153,7 +214,7 @@ with tab1:
         # Pick a new random version and save it in session_state
         random_idx = random.randint(0, len(filtered_df) - 1)
         st.session_state.selected_version = filtered_df.iloc[random_idx]["version"]
-        st.experimental_rerun()
+        st.rerun()
 
     # Use selected_version if set, else pick a random one (once)
     if "selected_version" in st.session_state:
@@ -177,22 +238,65 @@ with tab1:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.write(f"**Clique-ID:** {row.clique}")
-        st.write(f"**Version-ID:** {row.version}")
-        st.write(f"**Subset:** {row.subset}")
-        st.write(f"**Data Source:** {row.data_source}")
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{color_general};
+                padding:15px;
+                border-radius:10px;
+                font-size:20px;
+                color:white;
+            ">
+                <h4 style="margin-top:0; margin-bottom:10px;">General</h4>
+                <b>Clique-ID:</b> {row['clique']}<br>
+                <b>Version-ID:</b> {row['version']}<br>
+                <b>Subset:</b> {row['subset']}<br>
+                <b>Data Source:</b> {row['data_source']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     with col2:
-        st.write(f"**Artist:** {row.artist}")
-        st.write(f"**Country:** {row.country}")
-        st.write(f"**Genre:** {row.genres}")
-        st.write(f"**Style:** {row.styles}")
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{color_discogs};
+                padding:15px;
+                border-radius:10px;
+                font-size:20px;
+                color:white;
+            ">
+                <h4 style="margin-top:0; margin-bottom:10px;">Discogs</h4>
+                <b>Year:</b> {row['year']}<br>
+                <b>Artist:</b> {row['artist']}<br>
+                <b>Country:</b> {row['country']}<br>
+                <b>Genre:</b> {row['genres']}<br>
+                <b>Style:</b> {row['styles']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     with col3:
-        st.write(f"**Concept:** {row.concepts}")
-        st.write(f"**Instrument/Group:** {row.instruments_groups}")
-        st.write(f"**Segment:** {row.segments}")
-        st.write(f"**Tempo:** {round(row.tempo, 2)} BPM")
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{color_enriched};
+                padding:15px;
+                border-radius:10px;
+                font-size:20px;
+                color:white;
+            ">
+                <h4 style="margin-top:0; margin-bottom:10px;">Enriched</h4>
+                <b>Concept:</b> {row['concepts']}<br>
+                <b>Instrument/Group:</b> {row['instruments_groups']}<br>
+                <b>Segment:</b> {row['segments']}<br>
+                <b>Tempo:</b> {round(row['tempo'], 2)}<br>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     youtube_id = row.get("youtube_id", None)
     if pd.notna(youtube_id):
@@ -227,6 +331,7 @@ with tab2:
     st.subheader(f"*{clique_title}*")
 
     st.markdown(f"**Clique:** `{selected_clique}`")
+    st.markdown(f"**Subset:** `{clique_df.subset.iloc[0].title()}`")
     st.markdown(f"- **Number of versions:** {len(clique_df)}")
 
     # Select version from the clique, default to current selected_version

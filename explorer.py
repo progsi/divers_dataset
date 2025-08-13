@@ -211,24 +211,21 @@ with tab1:
 
     # Always show the button
     if st.button("Pick another random version"):
-        # Pick a new random version and save it in session_state
         random_idx = random.randint(0, len(filtered_df) - 1)
         st.session_state.selected_version = filtered_df.iloc[random_idx]["version"]
         st.rerun()
 
-    # Use selected_version if set, else pick a random one (once)
+    # Select version
     if "selected_version" in st.session_state:
         version_id = st.session_state.selected_version
         row = df[df["version"] == version_id]
         if row.empty:
             st.warning("Selected version not found after filtering.")
-            # Fallback: pick random
             random_idx = random.randint(0, len(filtered_df) - 1)
             row = filtered_df.iloc[[random_idx]]
             st.session_state.selected_version = row.iloc[0]["version"]
         row = row.iloc[0]
     else:
-        # Initialize selected_version with a random version
         random_idx = random.randint(0, len(filtered_df) - 1)
         row = filtered_df.iloc[random_idx]
         st.session_state.selected_version = row["version"]
@@ -236,10 +233,12 @@ with tab1:
     # Display info
     st.subheader(f"*{row.title}*")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(
-            f"""
+    # Two columns: left for stacked info boxes, right for video
+    left_col, right_col = st.columns([1, 1])
+
+    with left_col:
+        # Row 1: General
+        st.markdown(f"""
             <div style="
                 background-color:{color_general};
                 padding:15px;
@@ -247,19 +246,16 @@ with tab1:
                 font-size:20px;
                 color:white;
             ">
-                <h4 style="margin-top:0; margin-bottom:10px;">General</h4>
+                <h4>General</h4>
                 <b>Clique-ID:</b> {row['clique']}<br>
                 <b>Version-ID:</b> {row['version']}<br>
                 <b>Subset:</b> {row['subset']}<br>
                 <b>Data Source:</b> {row['data_source']}
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown(
-            f"""
+        # Row 2: Discogs
+        st.markdown(f"""
             <div style="
                 background-color:{color_discogs};
                 padding:15px;
@@ -267,20 +263,17 @@ with tab1:
                 font-size:20px;
                 color:white;
             ">
-                <h4 style="margin-top:0; margin-bottom:10px;">Discogs</h4>
+                <h4>Discogs</h4>
                 <b>Artist:</b> {row['artist']}<br>
                 <b>Year:</b> {row['year']}<br>
                 <b>Country:</b> {row['country']}<br>
                 <b>Genre:</b> {row['genres']}<br>
                 <b>Style:</b> {row['styles']}
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        """, unsafe_allow_html=True)
 
-    with col3:
-        st.markdown(
-            f"""
+        # Row 3: Enriched
+        st.markdown(f"""
             <div style="
                 background-color:{color_enriched};
                 padding:15px;
@@ -288,22 +281,22 @@ with tab1:
                 font-size:20px;
                 color:white;
             ">
-                <h4 style="margin-top:0; margin-bottom:10px;">Enriched</h4>
+                <h4>Enriched</h4>
                 <b>Concept:</b> {row['concepts']}<br>
                 <b>Instrument/Group:</b> {row['instruments_groups']}<br>
                 <b>Segment:</b> {row['segments']}<br>
                 <b>Tempo:</b> {round(row['tempo'], 2)}<br>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        """, unsafe_allow_html=True)
 
-    youtube_id = row.get("youtube_id", None)
-    if pd.notna(youtube_id):
-        youtube_url = f"https://www.youtube.com/watch?v={youtube_id}"
-        st.video(youtube_url)
-    else:
-        st.info("No YouTube video available for this entry.")
+    with right_col:
+        youtube_id = row.get("youtube_id", None)
+        if pd.notna(youtube_id):
+            youtube_url = f"https://www.youtube.com/watch?v={youtube_id}"
+            st.video(youtube_url)
+        else:
+            st.info("No YouTube video available for this entry.")
+
         
 # TAB 2: Random Clique
 with tab2:

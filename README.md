@@ -134,7 +134,3 @@ Having downloaded and extracted the JSON metadata from Zenodo, you can run our e
 streamlit run explorer.py --json_file data/divers1m.json
 ```
 ![Explorer App](figures/explorer.png)
-# Analysis
-
-In `content_analysis.ipynb` we analyze: duration, n-grams etc.
-

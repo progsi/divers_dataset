@@ -128,6 +128,12 @@ The dataset is very large and depending on the use case a respective subset migh
 ### Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 
 
+# Explorer
+Having downloaded and extracted the JSON metadata from Zenodo, you can run our explorer app to discover the dataset. For instance, is you have the file under `data/divers1m.json`, run:
+```
+streamlit run explorer.py --json_file data/divers1m.json
+```
+
 # Analysis
 
 In `content_analysis.ipynb` we analyze: duration, n-grams etc.

@@ -268,8 +268,8 @@ with tab1:
                 color:white;
             ">
                 <h4 style="margin-top:0; margin-bottom:10px;">Discogs</h4>
-                <b>Year:</b> {row['year']}<br>
                 <b>Artist:</b> {row['artist']}<br>
+                <b>Year:</b> {row['year']}<br>
                 <b>Country:</b> {row['country']}<br>
                 <b>Genre:</b> {row['genres']}<br>
                 <b>Style:</b> {row['styles']}
@@ -324,13 +324,16 @@ with tab2:
     clique_df = df[df["clique"] == selected_clique]
 
     # Find first Discogs title or fallback
-    discogs_titles = clique_df[clique_df["dvi"] == True]["title"]
-    clique_title = discogs_titles.iloc[0] if not discogs_titles.empty else "N/A"
+    discogs_version = clique_df[clique_df["dvi"] == True]
+    clique_title = discogs_version.iloc[0].title if not discogs_version.empty else "N/A"
+    clique_writer = discogs_version.iloc[0].writers if not discogs_version.empty else "N/A"
+
 
     # Show clique title as subheader
     st.subheader(f"*{clique_title}*")
 
     st.markdown(f"**Clique:** `{selected_clique}`")
+    st.markdown(f"**Written by:** `{clique_writer}`")
     st.markdown(f"**Subset:** `{clique_df.subset.iloc[0].title()}`")
     st.markdown(f"- **Number of versions:** {len(clique_df)}")
 

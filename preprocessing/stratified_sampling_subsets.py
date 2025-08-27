@@ -1,6 +1,7 @@
 import os
 import json
 import torch
+import numpy as np
 import pandas as pd
 
 
@@ -44,31 +45,59 @@ def load_dataset(path):
 
 
 def stratified_split(df, n=100_000, target_ratio=0.7, min_class_size=2, random_state=42):
-    """Split df into sub-sample with approximately target_ratio of dvi items."""
-    # filter small classes
+    """Split df into sub-sample with approx. target_ratio of dvi items
+    and ensure >=2 rows per clique in final sample.
+    """
+    rng = np.random.default_rng(random_state)
+
+    # Filter small cliques
     class_sizes = df.groupby("clique")["version"].count()
     valid_classes = class_sizes[class_sizes >= min_class_size].index
     df = df[df["clique"].isin(valid_classes)]
 
     n = min(n, len(df))
 
-    # partition into dvi / non-dvi
+    # Partition into dvi / non-dvi
     dvi = df[df["dvi"].astype(bool)]
     non = df[~df["dvi"].astype(bool)]
 
-    print(f"Available items: DVI={len(dvi)}, non-DVI={len(non)}, total={len(df)}")
+    # Desired global counts
+    n_dvi_target = min(int(n * target_ratio), len(dvi))
+    n_non_target = min(n - n_dvi_target, len(non))
 
-    # desired counts
-    n_dvi = min(int(n * target_ratio), len(dvi))
-    n_non = min(n - n_dvi, len(non))
+    # --- Step 1: force 2 rows per clique ---
+    forced_samples = []
+    for clique, g in df.groupby("clique"):
+        k = min(len(g), 2)  # if clique has only 2, take both
+        forced_samples.append(g.sample(n=k, random_state=random_state))
+    forced_df = pd.concat(forced_samples)
+    
+    # Track how many dvi/non we've already used
+    forced_dvi = forced_df["dvi"].sum()
+    forced_non = len(forced_df) - forced_dvi
 
-    if n_dvi + n_non == 0:
-        raise ValueError("No items available for sampling. Reduce n or adjust target_ratio.")
+    # Remaining budget after forced picks
+    n_dvi_remaining = max(n_dvi_target - forced_dvi, 0)
+    n_non_remaining = max(n_non_target - forced_non, 0)
 
-    dvi_sample = dvi.sample(n=n_dvi, replace=False, random_state=random_state) if n_dvi > 0 else pd.DataFrame(columns=df.columns)
-    non_sample = non.sample(n=n_non, replace=False, random_state=random_state) if n_non > 0 else pd.DataFrame(columns=df.columns)
+    # --- Step 2: fill remaining quota ---
+    dvi_remaining = dvi.drop(forced_df.index, errors="ignore")
+    non_remaining = non.drop(forced_df.index, errors="ignore")
 
-    return pd.concat([dvi_sample, non_sample]).reset_index(drop=True)
+    dvi_extra = (
+        dvi_remaining.sample(n=n_dvi_remaining, replace=False, random_state=random_state)
+        if n_dvi_remaining > 0 and len(dvi_remaining) > 0
+        else pd.DataFrame(columns=df.columns)
+    )
+    non_extra = (
+        non_remaining.sample(n=n_non_remaining, replace=False, random_state=random_state)
+        if n_non_remaining > 0 and len(non_remaining) > 0
+        else pd.DataFrame(columns=df.columns)
+    )
+
+    final_df = pd.concat([forced_df, dvi_extra, non_extra]).reset_index(drop=True)
+
+    return final_df
 
 
 def print_df_summary(df, subset="overall"):
@@ -128,7 +157,7 @@ if __name__ == "__main__":
     print_df_summary(subset80, "overall")
 
     os.makedirs("data/divers1m_json/stratified_samples", exist_ok=True)
-    save_df_as_torch(subset20, "data/divers1m_json/stratified_samples/sample_20.pt")
-    save_df_as_torch(subset40, "data/divers1m_json/stratified_samples/sample_40.pt")
-    save_df_as_torch(subset60, "data/divers1m_json/stratified_samples/sample_60.pt")
-    save_df_as_torch(subset80, "data/divers1m_json/stratified_samples/sample_80.pt")
+    save_df_as_torch(subset20, "data/divers1m_json/stratified_samples/sample20.pt")
+    save_df_as_torch(subset40, "data/divers1m_json/stratified_samples/sample40.pt")
+    save_df_as_torch(subset60, "data/divers1m_json/stratified_samples/sample60.pt")
+    save_df_as_torch(subset80, "data/divers1m_json/stratified_samples/sample80.pt")

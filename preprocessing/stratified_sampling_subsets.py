@@ -43,62 +43,73 @@ def load_dataset(path):
 
     return df, meta
 
-
-def stratified_split(df, n=100_000, target_ratio=0.7, min_class_size=2, random_state=42):
-    """Split df into sub-sample with approx. target_ratio of dvi items
-    and ensure >=2 rows per clique in final sample.
+def stratified_sample(df, n_per_class=3, n_classes=None, dvi_ratio=0.5, random_state=None):
     """
-    rng = np.random.default_rng(random_state)
-
-    # Filter small cliques
-    class_sizes = df.groupby("clique")["version"].count()
-    valid_classes = class_sizes[class_sizes >= min_class_size].index
-    df = df[df["clique"].isin(valid_classes)]
-
-    n = min(n, len(df))
-
-    # Partition into dvi / non-dvi
-    dvi = df[df["dvi"].astype(bool)]
-    non = df[~df["dvi"].astype(bool)]
-
-    # Desired global counts
-    n_dvi_target = min(int(n * target_ratio), len(dvi))
-    n_non_target = min(n - n_dvi_target, len(non))
-
-    # --- Step 1: force 2 rows per clique ---
-    forced_samples = []
-    for clique, g in df.groupby("clique"):
-        k = min(len(g), 2)  # if clique has only 2, take both
-        forced_samples.append(g.sample(n=k, random_state=random_state))
-    forced_df = pd.concat(forced_samples)
+    Stratified sampling function with fixed number of items per class, desired number of classes,
+    and target ratio of dvi==True in the final sample. Filters out classes with fewer than n_per_class.
     
-    # Track how many dvi/non we've already used
-    forced_dvi = forced_df["dvi"].sum()
-    forced_non = len(forced_df) - forced_dvi
-
-    # Remaining budget after forced picks
-    n_dvi_remaining = max(n_dvi_target - forced_dvi, 0)
-    n_non_remaining = max(n_non_target - forced_non, 0)
-
-    # --- Step 2: fill remaining quota ---
-    dvi_remaining = dvi.drop(forced_df.index, errors="ignore")
-    non_remaining = non.drop(forced_df.index, errors="ignore")
-
-    dvi_extra = (
-        dvi_remaining.sample(n=n_dvi_remaining, replace=False, random_state=random_state)
-        if n_dvi_remaining > 0 and len(dvi_remaining) > 0
-        else pd.DataFrame(columns=df.columns)
-    )
-    non_extra = (
-        non_remaining.sample(n=n_non_remaining, replace=False, random_state=random_state)
-        if n_non_remaining > 0 and len(non_remaining) > 0
-        else pd.DataFrame(columns=df.columns)
-    )
-
-    final_df = pd.concat([forced_df, dvi_extra, non_extra]).reset_index(drop=True)
-
-    return final_df
-
+    Parameters:
+        df (pd.DataFrame): Input dataframe with columns 'clique' and 'dvi'.
+        n_per_class (int): Number of items to sample per class.
+        n_classes (int): Number of classes to sample.
+        dvi_ratio (float): Desired ratio of dvi==True in final sample (0-1).
+        random_state (int): Random seed.
+    
+    Returns:
+        pd.DataFrame: Sampled dataframe.
+    """
+    
+    if random_state is not None:
+        np.random.seed(random_state)
+    
+    # Filter classes that have enough items
+    class_counts = df['clique'].value_counts()
+    eligible_classes = class_counts[class_counts >= n_per_class].index.tolist()
+    
+    if not eligible_classes:
+        raise ValueError(f"No classes have at least {n_per_class} items.")
+    
+    if n_classes is None or n_classes > len(eligible_classes):
+        n_classes = len(eligible_classes)
+    
+    # Randomly choose classes
+    chosen_classes = np.random.choice(eligible_classes, size=n_classes, replace=False)
+    
+    # Sample fixed number per class
+    sampled_list = []
+    for cl in chosen_classes:
+        df_class = df[df['clique'] == cl]
+        sampled_class = df_class.sample(n=n_per_class, replace=False, random_state=random_state)
+        sampled_list.append(sampled_class)
+    
+    sample_df = pd.concat(sampled_list)
+    
+    # Adjust dvi ratio
+    total_items = len(sample_df)
+    desired_true_count = int(round(dvi_ratio * total_items))
+    current_true_count = sample_df['dvi'].sum()
+    
+    if desired_true_count > total_items:
+        raise ValueError("Desired number of True items exceeds sample size")
+    
+    if current_true_count != desired_true_count:
+        trues = sample_df[sample_df['dvi'] == True]
+        falses = sample_df[sample_df['dvi'] == False]
+        
+        if current_true_count < desired_true_count:
+            to_switch = desired_true_count - current_true_count
+            if len(falses) < to_switch:
+                raise ValueError("Not enough False items to achieve desired dvi ratio")
+            falses_indices = falses.sample(n=to_switch, random_state=random_state).index
+            sample_df.loc[falses_indices, 'dvi'] = True
+        else:
+            to_switch = current_true_count - desired_true_count
+            if len(trues) < to_switch:
+                raise ValueError("Not enough True items to reduce to desired dvi ratio")
+            trues_indices = trues.sample(n=to_switch, random_state=random_state).index
+            sample_df.loc[trues_indices, 'dvi'] = False
+    
+    return sample_df.reset_index(drop=True)
 
 def print_df_summary(df, subset="overall"):
     if subset != "overall":
@@ -144,20 +155,18 @@ def save_df_as_torch(df, out_path, split_col="split"):
 
 if __name__ == "__main__":
     df, meta = load_dataset("data/divers1m_json/rich/divers1m.json")
-
-    subset20 = stratified_split(df, n=100_000, target_ratio=0.2)
-    subset40 = stratified_split(df, n=100_000, target_ratio=0.4)
-    subset60 = stratified_split(df, n=100_000, target_ratio=0.6)
-    subset80 = stratified_split(df, n=100_000, target_ratio=0.8)
-
-    print_df_summary(df, "overall")
-    print_df_summary(subset20, "overall")
-    print_df_summary(subset40, "overall")
-    print_df_summary(subset60, "overall")
-    print_df_summary(subset80, "overall")
-
+    df_test = df.query("split == 'test'")
     os.makedirs("data/divers1m_json/stratified_samples", exist_ok=True)
-    save_df_as_torch(subset20, "data/divers1m_json/stratified_samples/sample20.pt")
-    save_df_as_torch(subset40, "data/divers1m_json/stratified_samples/sample40.pt")
-    save_df_as_torch(subset60, "data/divers1m_json/stratified_samples/sample60.pt")
-    save_df_as_torch(subset80, "data/divers1m_json/stratified_samples/sample80.pt")
+    
+    for frac in [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]:
+        subset = stratified_sample(
+            df_test,
+            n_per_class=3,      # Number of items per class
+            n_classes=1000,        # How many classes to sample
+            dvi_ratio=0.2,      # Desired proportion of True in 'dvi'
+            random_state=42     # For reproducibility
+        )
+        print(f"\n=== Summary for dvi_fraction={frac} ===")
+        print_df_summary(subset, "overall")
+        save_df_as_torch(subset, f"data/divers1m_json/stratified_samples/sample{frac}.pt")
+

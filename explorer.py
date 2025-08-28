@@ -33,10 +33,7 @@ def join_styles(styles):
     return ", ".join(styles)
 
 def get_concepts_and_cues(concept_dict, include_cues=False):
-    """Get list of concepts and their cues from the concept dictionary.
-    """
     concept_to_cues = {}
-
     for field, matches in concept_dict.items():
         for concept, cue in matches.items():
             concept_cap = concept.title()
@@ -44,7 +41,6 @@ def get_concepts_and_cues(concept_dict, include_cues=False):
                 concept_to_cues[concept_cap] = set()
             if include_cues and cue is not None:
                 concept_to_cues[concept_cap].add(cue)
-
     concepts = list(concept_to_cues.keys())
     cues_list = [sorted(cues) if include_cues else [] for cues in concept_to_cues.values()]
     return concepts, cues_list
@@ -88,16 +84,15 @@ def load_dataset(path):
     df["genres"] = df.genres_list.apply(join_list)
     df["styles"] = df.release_styles.apply(join_styles)
     
-    # additional
     df["concepts_list"], df["concepts_cues_list"] = zip(*df["matched_concepts"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
     df["instruments_list"], df["instruments_cues_list"] = zip(*df["matched_instruments_groups"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
     df["segments_list"], df["segments_cues_list"] = zip(*df["matched_segments"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
-    df["concepts_list"] = df["concepts_list"].apply(lambda x: x if isinstance(x, list) else [])
-    df["instruments_list"] = df["instruments_list"].apply(lambda x: x if isinstance(x, list) else [])
-    df["segments_list"] = df["segments_list"].apply(lambda x: x if isinstance(x, list) else [])
-    df["genres_list"] = df["genres_list"].apply(lambda x: x if isinstance(x, list) else [])
-
-    # String version (for display)
+    
+    # Ensure lists
+    for col in ["concepts_list", "instruments_list", "segments_list", "genres_list"]:
+        df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
+    
+    # String version for display
     def list_to_str(lst):
         return ", ".join(lst) if isinstance(lst, list) else lst
     df["concepts"] = df["concepts_list"].apply(list_to_str)
@@ -106,35 +101,39 @@ def load_dataset(path):
     df["instruments_cues"] = df["instruments_cues_list"].apply(lambda x: ", ".join([str(i) for i in x]))
     df["segments"] = df["segments_list"].apply(list_to_str)
     df["segments_cues"] = df["segments_cues_list"].apply(lambda x: ", ".join([str(i) for i in x]))
-    
     df["tempo"] = df["tempo"].apply(lambda x: round(x) if pd.notna(x) else "?")
     
-    # --- normalize "?" and empty values ---
     df = df.replace(["?", ""], np.nan)
-    
     return df, meta
 
 ##################### Streamlit App ###################
 
-
-def prettify_column_name(col_name):
-    return col_name.replace("_", " ").title()
-
 st.title("🎶 DiVers1M Explorer")
 
 # Load dataset
-DATA_PATH = "data/divers1m_json/sample.json"  # change if needed
+DATA_PATH = "data/divers1m_json/sample.json"
 df, meta = load_dataset(DATA_PATH)
 
+
+
+# ---------------- Filtered DataFrame ----------------
+filtered_df = df.copy()
+# --- Random Version Button on top ---
+if st.sidebar.button("🎲 Random Version"):
+    if not filtered_df.empty:
+        st.session_state.detail_idx = random.choice(filtered_df.index.tolist())
+        # Switch to Version View tab if currently on List View
+        st.session_state.active_tab = 0
+        st.rerun()
+        
 # ---------------- Sidebar Filters ----------------
 st.sidebar.header("Filters")
 
-subset_filter = st.sidebar.multiselect("Subset", options=sorted(df["subset"].unique()))
+# --- Filters below the button ---
+subset_filter = st.sidebar.multiselect("Subset", options=sorted(df["subset"].dropna().unique()))
 genre_filter = st.sidebar.multiselect(
     "Genres", options=sorted({g for lst in df["genres_list"] for g in lst})
 )
-
-# Use _list columns for filtering
 concept_filter = st.sidebar.multiselect(
     "Concepts", options=sorted({c for lst in df["concepts_list"] for c in lst})
 )
@@ -144,113 +143,81 @@ instruments_filter = st.sidebar.multiselect(
 segments_filter = st.sidebar.multiselect(
     "Segments", options=sorted({s for lst in df["segments_list"] for s in lst})
 )
-
 artist_filter = st.sidebar.text_input("Search Artist")
 title_filter = st.sidebar.text_input("Search Title")
-
-filtered_df = df.copy()
-
-if subset_filter:
-    filtered_df = filtered_df[filtered_df["subset"].isin(subset_filter)]
-if concept_filter:
-    mask = filtered_df["concepts_list"].apply(lambda x: any(c in x for c in concept_filter) if isinstance(x, list) else False)
-    filtered_df = filtered_df[mask]
-if instruments_filter:
-    mask = filtered_df["instruments_list"].apply(lambda x: any(i in x for i in instruments_filter) if isinstance(x, list) else False)
-    filtered_df = filtered_df[mask]
-if segments_filter:
-    mask = filtered_df["segments_list"].apply(lambda x: any(s in x for s in segments_filter) if isinstance(x, list) else False)
-    filtered_df = filtered_df[mask]
-if genre_filter:
-    mask = filtered_df["genres_list"].apply(lambda x: any(g in x for g in genre_filter) if isinstance(x, list) else False)
-    filtered_df = filtered_df[mask]
-if artist_filter:
-    filtered_df = filtered_df[filtered_df["artist"].str.contains(artist_filter, case=False, na=False)]
-if title_filter:
-    filtered_df = filtered_df[filtered_df["title"].str.contains(title_filter, case=False, na=False)]
-
-
+        
 # ---------------- Tabs ----------------
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = 0
 tab1, tab2 = st.tabs(["Version View", "List View"])
 
-
-# ---------------- Detail View Tab -----------
+# ---------------- Version View ----------------
 with tab1:
     if filtered_df.empty:
         st.info("No items match the current filters.")
     else:
-        filters_hash = hash(tuple(filtered_df.index.tolist()))
-        if "last_filters_hash" not in st.session_state or st.session_state.last_filters_hash != filters_hash:
+        if "detail_idx" not in st.session_state or st.session_state.detail_idx not in filtered_df.index:
             st.session_state.detail_idx = random.choice(filtered_df.index.tolist())
-            st.session_state.last_filters_hash = filters_hash
-
-        def get_random_row(df_subset, current_idx=None):
-            available = df_subset.index.tolist()
-            if current_idx in available and len(available) > 1:
-                available.remove(current_idx)
-            return df_subset.loc[random.choice(available)]
-
         row = filtered_df.loc[st.session_state.detail_idx]
 
         col1, col2 = st.columns([2, 3])
-        def render_tags(label, values, fontsize="18px", row_spacing="2px"):
-            if pd.isna(values) or values is None:
-                st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> <i>none</i></div>', unsafe_allow_html=True)
-                return
 
-            # If it's a single string, split on commas
-            if isinstance(values, str):
-                values = [v.strip() for v in values.split(",") if v.strip()]
+        def render_tags_with_cues_dict(label, tags, cues_list, fontsize="18px", row_spacing="2px"):
+            """
+            Render tags and show a dictionary mapping each tag to its cues.
+            Ignores NaNs and None tags.
+            """
+            import pandas as pd
 
-            # If it's already a list/iterable
-            if isinstance(values, (list, tuple)):
-                values = [str(v).strip() for v in values if pd.notna(v) and str(v).strip()]
+            # Ensure tags and cues are lists
+            if not isinstance(tags, (list, tuple)):
+                tags = [tags] if tags is not None else []
+            if not isinstance(cues_list, (list, tuple)):
+                cues_list = [cues_list] if cues_list is not None else []
 
-            if values:
-                tags_html = " ".join([f"<code>{v}</code>" for v in values])
+            # Filter out NaNs or None tags
+            valid_tags = [t for t in tags if t is not None and not (isinstance(t, float) and pd.isna(t))]
+
+            # Render main tags
+            if valid_tags:
+                tags_html = " ".join([f"<code>{v}</code>" for v in valid_tags])
                 st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> {tags_html}</div>', unsafe_allow_html=True)
             else:
                 st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> <i>none</i></div>', unsafe_allow_html=True)
+
+            # Build dict mapping tag -> cues (skip invalid tags)
+            tag_to_cues = {}
+            for i, tag in enumerate(tags):
+                if tag is None or (isinstance(tag, float) and pd.isna(tag)):
+                    continue
+                if i < len(cues_list) and cues_list[i] is not None:
+                    tag_to_cues[tag] = cues_list[i]
+                else:
+                    tag_to_cues[tag] = []
+
+            if tag_to_cues:
+                st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing}; margin-left:10px; color:gray;"><i>Cues:</i> {tag_to_cues}</div>', unsafe_allow_html=True)
 
         with col1:
             st.markdown(f"### {row['title']}")
             artist = row.get("artist", "Unknown")
             year = row.get("year", "Unknown")
-            title = row.get("title", "")
             st.markdown(f'<div style="font-size:20px; margin-bottom:4px;">by <b>{artist}</b> from <b>{year}</b></div>', unsafe_allow_html=True)
-
-            # Row 1: core IDs
-            st.markdown(
-                f'<div style="font-size:18px; margin-bottom:2px;"><b>Clique:</b> {row["clique"]}  |  <b>Version:</b> {row["version"]}  |  <b>Youtube ID:</b> {row["youtube_id"]}</div>',
-                unsafe_allow_html=True
-            )
-
-            # Row 2: meta
-            st.markdown(
-                f'<div style="font-size:18px; margin-bottom:2px;"><b>Subset:</b> {row["subset"]}  |  <b>Data Source:</b> {row["data_source"]}</div>',
-                unsafe_allow_html=True
-            )
-
-            # Extra info
+            st.markdown(f'<div style="font-size:18px; margin-bottom:2px;"><b>Clique:</b> {row["clique"]}  |  <b>Version:</b> {row["version"]}  |  <b>Youtube ID:</b> {row["youtube_id"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:18px; margin-bottom:2px;"><b>Subset:</b> {row["subset"]}  |  <b>Data Source:</b> {row["data_source"]}</div>', unsafe_allow_html=True)
             st.markdown(f'<div style="font-size:18px; margin-bottom:8px;"><b>Tempo:</b> {row.get("tempo", "Unknown")}</div>', unsafe_allow_html=True)
-
-            # --- Tags Section ---
             st.markdown('<div style="margin-top:10px;"><b>Tags:</b></div>', unsafe_allow_html=True)
-            render_tags("Genres", row["genres"], fontsize="18px", row_spacing="2px")
-            render_tags("Styles", row["styles"], fontsize="18px", row_spacing="2px")
-            render_tags("Concepts", row["concepts"], fontsize="18px", row_spacing="2px")
-            render_tags("Instrument Groups", row["instruments_groups"], fontsize="18px", row_spacing="2px")
-            render_tags("Segments", row["segments"], fontsize="18px", row_spacing="2px")
 
-            if st.button("🎲 Random Version"):
-                random_row = get_random_row(filtered_df, current_idx=row.name)
-                st.session_state.detail_idx = random_row.name
-                st.rerun()
+            render_tags_with_cues_dict("Genres", row["genres"], [])  # Genres don’t have cues
+            render_tags_with_cues_dict("Styles", row["styles"], [])  # Styles don’t have cues
+            render_tags_with_cues_dict("Concepts", row["concepts_list"], row["concepts_cues_list"])
+            render_tags_with_cues_dict("Instrument Groups", row["instruments_list"], row["instruments_cues_list"])
+            render_tags_with_cues_dict("Segments", row["segments_list"], row["segments_cues_list"])
+
 
         with col2:
             if row['youtube_id']:
                 youtube_id = row['youtube_id']
-                # Set width=100% to fit column, height smaller than default
                 st.markdown(f"""
                 <iframe 
                     width="100%" 
@@ -261,26 +228,10 @@ with tab1:
                 </iframe>
                 """, unsafe_allow_html=True)
 
-
-# ----------- Overview Tab -----------
+# ---------------- List View ----------------
 with tab2:
     st.subheader("Dataset Overview")
-
     display_df = filtered_df[DISPLAY_COLS + ["youtube_id"]].copy()
-    
-    # Sort by clique and version
     display_df = display_df.sort_values(by=["clique", "version"])
-    
-    display_df = display_df.rename(columns={col: prettify_column_name(col) for col in display_df.columns})
-
-    # Store selection in session_state
-    if "selected_idx" not in st.session_state:
-        st.session_state.selected_idx = None
-
-    # Use st.data_editor for row selection
-    st.dataframe(
-        display_df,
-        hide_index=True,
-        use_container_width=True,
-    )
-    
+    display_df = display_df.rename(columns={col: col.replace("_", " ").title() for col in display_df.columns})
+    st.dataframe(display_df, hide_index=True, use_container_width=True)

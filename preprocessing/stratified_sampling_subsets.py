@@ -110,7 +110,6 @@ def print_df_summary(df, subset="overall"):
               f"Std: {version_per_clique.std():>5.2f}")
     print("=" * 40)
 
-
 def save_df_as_torch(df, out_path, split_col="split"):
     """Save df as torch file with 'info' and 'split' dicts."""
     index = df["clique"].astype(str) + ":" + df["version"].astype(str)
@@ -121,7 +120,6 @@ def save_df_as_torch(df, out_path, split_col="split"):
     split_dict = df.groupby("clique")["version"].apply(list).to_dict()
     torch.save({"info": info_dict, "split": split_dict}, out_path)
     print(f"Saved torch file to {out_path}")
-
 
 def parse_args():
     import argparse

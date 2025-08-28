@@ -43,73 +43,43 @@ def load_dataset(path):
 
     return df, meta
 
-def stratified_sample(df, n_per_class=3, n_classes=None, dvi_ratio=0.5, random_state=None):
+def stratified_sample(df, dvi_ratio, n_classes=1000, m_per_class=2, rnd=42, clique_col='clique', dvi_col='dvi'):
     """
-    Stratified sampling function with fixed number of items per class, desired number of classes,
-    and target ratio of dvi==True in the final sample. Filters out classes with fewer than n_per_class.
-    
-    Parameters:
-        df (pd.DataFrame): Input dataframe with columns 'clique' and 'dvi'.
-        n_per_class (int): Number of items to sample per class.
-        n_classes (int): Number of classes to sample.
-        dvi_ratio (float): Desired ratio of dvi==True in final sample (0-1).
-        random_state (int): Random seed.
-    
-    Returns:
-        pd.DataFrame: Sampled dataframe.
+    Sample a mixed dataframe from DVI and non-DVI items per clique.
     """
-    
-    if random_state is not None:
-        np.random.seed(random_state)
-    
-    # Filter classes that have enough items
-    class_counts = df['clique'].value_counts()
-    eligible_classes = class_counts[class_counts >= n_per_class].index.tolist()
-    
-    if not eligible_classes:
-        raise ValueError(f"No classes have at least {n_per_class} items.")
-    
-    if n_classes is None or n_classes > len(eligible_classes):
-        n_classes = len(eligible_classes)
-    
-    # Randomly choose classes
-    chosen_classes = np.random.choice(eligible_classes, size=n_classes, replace=False)
-    
-    # Sample fixed number per class
-    sampled_list = []
-    for cl in chosen_classes:
-        df_class = df[df['clique'] == cl]
-        sampled_class = df_class.sample(n=n_per_class, replace=False, random_state=random_state)
-        sampled_list.append(sampled_class)
-    
-    sample_df = pd.concat(sampled_list)
-    
-    # Adjust dvi ratio
-    total_items = len(sample_df)
-    desired_true_count = int(round(dvi_ratio * total_items))
-    current_true_count = sample_df['dvi'].sum()
-    
-    if desired_true_count > total_items:
-        raise ValueError("Desired number of True items exceeds sample size")
-    
-    if current_true_count != desired_true_count:
-        trues = sample_df[sample_df['dvi'] == True]
-        falses = sample_df[sample_df['dvi'] == False]
-        
-        if current_true_count < desired_true_count:
-            to_switch = desired_true_count - current_true_count
-            if len(falses) < to_switch:
-                raise ValueError("Not enough False items to achieve desired dvi ratio")
-            falses_indices = falses.sample(n=to_switch, random_state=random_state).index
-            sample_df.loc[falses_indices, 'dvi'] = True
-        else:
-            to_switch = current_true_count - desired_true_count
-            if len(trues) < to_switch:
-                raise ValueError("Not enough True items to reduce to desired dvi ratio")
-            trues_indices = trues.sample(n=to_switch, random_state=random_state).index
-            sample_df.loc[trues_indices, 'dvi'] = False
-    
-    return sample_df.reset_index(drop=True)
+    np.random.seed(rnd)
+
+    # Filter cliques that have at least m_per_class in both DVI and non-DVI
+    df_filtered = df.groupby(clique_col).filter(
+        lambda g: (g[dvi_col].eq(True).sum() >= m_per_class) 
+                  and (g[dvi_col].eq(False).sum() >= m_per_class)
+    )
+
+    # Sample valid cliques
+    valid_cliques = df_filtered[clique_col].drop_duplicates().sample(n=n_classes, random_state=rnd).tolist()
+
+    # Prepare candidates
+    candidates_dvi = df_filtered.loc[(df_filtered[dvi_col] == True) & (df_filtered[clique_col].isin(valid_cliques))]
+    candidates_dvi = candidates_dvi.groupby(clique_col).sample(n=m_per_class, random_state=rnd)
+
+    candidates_yvi = df_filtered.loc[(df_filtered[dvi_col] == False) & (df_filtered[clique_col].isin(valid_cliques))]
+    candidates_yvi = candidates_yvi.groupby(clique_col).sample(n=m_per_class, random_state=rnd)
+
+    # Mix DVI and non-DVI per clique randomly
+    mixed_rows = []
+    for clique in valid_cliques:
+        n_dvi = np.random.binomial(n=m_per_class, p=dvi_ratio)
+        n_yvi = m_per_class - n_dvi
+
+        sampled_dvi = candidates_dvi[candidates_dvi[clique_col] == clique].sample(n=n_dvi, random_state=rnd)
+        sampled_yvi = candidates_yvi[candidates_yvi[clique_col] == clique].sample(n=n_yvi, random_state=rnd)
+
+        mixed_rows.append(pd.concat([sampled_dvi, sampled_yvi]))
+
+    # Combine all cliques into final dataframe
+    mixed_df = pd.concat(mixed_rows).reset_index(drop=True)
+
+    return mixed_df
 
 def print_df_summary(df, subset="overall"):
     if subset != "overall":
@@ -153,20 +123,32 @@ def save_df_as_torch(df, out_path, split_col="split"):
     print(f"Saved torch file to {out_path}")
 
 
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(description="Stratified sampling of dataset subsets.")
+    parser.add_argument("--input", type=str, help="Path to input dataset (JSON or PT).", 
+                        default="data/divers1m_json/rich/divers1m.json")
+    parser.add_argument("--output", type=str, help="Directory to save sampled subsets.", 
+                        default="data/divers1m_json/stratified_samples")
+    parser.add_argument("--m", type=int, default=3, help="Number of items per class.")
+    parser.add_argument("--n", type=int, default=1000, help="Number of classes to sample.")
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    df, meta = load_dataset("data/divers1m_json/rich/divers1m.json")
+    args = parse_args()
+    df, meta = load_dataset(args.input)
     df_test = df.query("split == 'test'")
-    os.makedirs("data/divers1m_json/stratified_samples", exist_ok=True)
+    os.makedirs(args.output, exist_ok=True)
     
-    for frac in [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]:
+    for frac in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
         subset = stratified_sample(
             df_test,
-            n_per_class=3,      # Number of items per class
-            n_classes=1000,        # How many classes to sample
-            dvi_ratio=0.2,      # Desired proportion of True in 'dvi'
-            random_state=42     # For reproducibility
+            dvi_ratio=frac,      # Desired proportion of True in 'dvi'
+            m_per_class=args.m,      # Number of items per class
+            n_classes=args.n,        # How many classes to sample
+            rnd=42     # For reproducibility
         )
         print(f"\n=== Summary for dvi_fraction={frac} ===")
         print_df_summary(subset, "overall")
-        save_df_as_torch(subset, f"data/divers1m_json/stratified_samples/sample{frac}.pt")
+        save_df_as_torch(subset, os.path.join(args.output, f"sample{frac}.pt"))
 

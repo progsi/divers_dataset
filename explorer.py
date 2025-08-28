@@ -191,7 +191,6 @@ with tab1:
             return df_subset.loc[random.choice(available)]
 
         row = filtered_df.loc[st.session_state.detail_idx]
-        st.markdown(f"### {row['title']}")
 
         col1, col2 = st.columns([2, 3])
         def render_tags(label, values, fontsize="18px", row_spacing="2px"):
@@ -214,7 +213,7 @@ with tab1:
                 st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> <i>none</i></div>', unsafe_allow_html=True)
 
         with col1:
-            # Subtitle line: artist + year
+            st.markdown(f"### {row['title']}")
             artist = row.get("artist", "Unknown")
             year = row.get("year", "Unknown")
             title = row.get("title", "")
@@ -250,8 +249,17 @@ with tab1:
 
         with col2:
             if row['youtube_id']:
-                youtube_url = f"https://www.youtube.com/watch?v={row['youtube_id']}"
-                st.video(youtube_url)
+                youtube_id = row['youtube_id']
+                # Set width=100% to fit column, height smaller than default
+                st.markdown(f"""
+                <iframe 
+                    width="100%" 
+                    height="450" 
+                    src="https://www.youtube.com/embed/{youtube_id}" 
+                    frameborder="0" 
+                    allowfullscreen>
+                </iframe>
+                """, unsafe_allow_html=True)
 
 
 # ----------- Overview Tab -----------

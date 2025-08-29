@@ -1,11 +1,12 @@
-# demo.py
-import argparse
-import ast
-import os
 import json
-import streamlit as st
-import pandas as pd
+import os
+import ast
 import random
+import numpy as np
+import pandas as pd
+import streamlit as st
+import datetime
+
 
 st.set_page_config(layout="wide")
 
@@ -16,43 +17,56 @@ DISPLAY_COLS = [
     'concepts', 'instruments_groups', 'segments', 'tempo',  
 ]
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "view"
+
+# Initialize annotation storage
+if "annotations" not in st.session_state:
+    st.session_state.annotations = pd.DataFrame(
+        columns=[
+            "youtube_id",
+            "clique",
+            "version",
+            "annotator",
+            "timestamp",
+            "note",
+            "confirm_version",
+            "genres_list_removed",
+            "concepts_list_removed",
+            "instruments_list_removed",
+            "segments_list_removed",
+        ]
+    )
+    
 ############### Preprocessing Functions ###############
 
 def join_list(lst):
     if isinstance(lst, str):
         lst = ast.literal_eval(lst)
     elif isinstance(lst, float):
-        return "?"
+        return np.nan
     return ", ".join(lst)
 
 def join_styles(styles):
     if isinstance(styles, str):
         styles = ast.literal_eval(styles)
     elif isinstance(styles, float):
-        return "?"
+        return np.nan
     styles = [style[1] for style in styles]
     return ", ".join(styles)
 
-def get_concept_str(concept_dict, cues=False):
+def get_concepts_and_cues(concept_dict, include_cues=False):
     concept_to_cues = {}
-
     for field, matches in concept_dict.items():
         for concept, cue in matches.items():
             concept_cap = concept.title()
             if concept_cap not in concept_to_cues:
                 concept_to_cues[concept_cap] = set()
-            if cues and cue is not None:
+            if include_cues and cue is not None:
                 concept_to_cues[concept_cap].add(cue)
-
-    concept_strs = []
-    for concept, cue_set in concept_to_cues.items():
-        if cues and cue_set:
-            cue_list = sorted(cue_set)  # sorted for consistent output
-            concept_strs.append(f"{concept} ({', '.join(cue_list)})")
-        else:
-            concept_strs.append(concept)
-
-    return ", ".join(concept_strs) if concept_strs else "(None)"
+    concepts = list(concept_to_cues.keys())
+    cues_list = [sorted(cues) if include_cues else [] for cues in concept_to_cues.values()]
+    return concepts, cues_list
 
 ##################### Load Dataset Function ###############
 
@@ -89,255 +103,316 @@ def load_dataset(path):
     df["year"] = df.released.fillna("?") 
     df["country"] = df.country.fillna("?")
     df["writers"] = df.track_writer_names.apply(join_list)
-    df["genres"] = df.release_genres.apply(join_list)
+    df["genres_list"] = df.release_genres.fillna("[]")
+    df["genres"] = df.genres_list.apply(join_list)
     df["styles"] = df.release_styles.apply(join_styles)
+    
+    df["concepts_list"], df["concepts_cues_list"] = zip(*df["matched_concepts"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
+    df["instruments_list"], df["instruments_cues_list"] = zip(*df["matched_instruments_groups"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
+    df["segments_list"], df["segments_cues_list"] = zip(*df["matched_segments"].apply(lambda x: get_concepts_and_cues(x, include_cues=True)))
+    
+    # Ensure lists
+    for col in ["concepts_list", "instruments_list", "segments_list", "genres_list"]:
+        df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
+    
+    # String version for display
+    def list_to_str(lst):
+        return ", ".join(lst) if isinstance(lst, list) else lst
+    df["concepts"] = df["concepts_list"].apply(list_to_str)
+    df["concepts_cues"] = df["concepts_cues_list"].apply(lambda x: ", ".join([str(i) for i in x]))
+    df["instruments_groups"] = df["instruments_list"].apply(list_to_str)
+    df["instruments_cues"] = df["instruments_cues_list"].apply(lambda x: ", ".join([str(i) for i in x]))
+    df["segments"] = df["segments_list"].apply(list_to_str)
+    df["segments_cues"] = df["segments_cues_list"].apply(lambda x: ", ".join([str(i) for i in x]))
+    df["tempo"] = df["tempo"].apply(lambda x: round(x) if pd.notna(x) else "?")
+    
+    df = df.replace(["?", ""], np.nan)
+    return df, meta
 
-    # additional
-    df["concepts"] = df["matched_concepts"].apply(lambda x: get_concept_str(x, cues=True))
-    df["instruments_groups"] = df["matched_instruments_groups"].apply(lambda x: get_concept_str(x, cues=False))
-    df["segments"] = df["matched_segments"].apply(lambda x: get_concept_str(x, cues=False))
+##################### Streamlit App ###################
 
-    return df, meta  
+st.title("🎶 DiVers1M Explorer")
 
-##################### Streamlit App #####################
-
-# CLI arguments ----
-parser = argparse.ArgumentParser(description="Run the Streamlit app.")
-parser.add_argument('--json_file', 
-                    type=str, 
-                    help='JSON file with dataset.', 
-                    default="data/divers1m_json/sample.json")
-args = parser.parse_args()
-
-# Load Data ----
-df, meta = load_dataset(args.json_file)
-
-
-def prettify_column_name(col_name):
-    return col_name.replace("_", " ").title()
-
-# Your filter functions without color param and without colored header
-def multiselect_filter(df, column):
-    options = sorted(df[column].dropna().unique())
-    selected = st.sidebar.multiselect(column.replace('_', ' ').title(), options, key=f"multiselect_{column}")
-    if selected:
-        return df[df[column].isin(selected)]
-    return df
-
-def text_filter(df, column):
-    text = st.sidebar.text_input(column.replace('_', ' ').title(), key=f"textinput_{column}")
-    if text:
-        return df[df[column].str.contains(text, case=False, na=False)]
-    return df
-
-color_general = "#D55E00"  
-color_discogs = "#0072B2"  
-color_enriched = "#009E73" 
-
-# Reverse map: color → list of columns
-color_groups = {
-    color_general: [
-        "title", "subset", "data_source"
-    ],
-    color_discogs: [
-        "artist", "writers", "year", "country", "genres", "styles"
-    ],
-    color_enriched: [
-        "concepts", "instruments_groups", "segments", "tempo"
-    ],
-}
-
-def filter_group_box(title, color, columns, df):
-    # Calculate approx height per filter (adjust as needed)
-    approx_height_per_filter = 60  # px; guess based on typical widget height
-
-    n_filters = len(columns)
-    total_height = approx_height_per_filter * n_filters + 50  # extra padding for title etc
-
-    # Colored "box" div with padding + border-radius wrapping approx the whole group
-    st.sidebar.markdown(
-        f"""
-        <div style="
-            background-color: {color};
-            padding: 15px 15px 15px 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-            position: relative;
-        ">
-            {title}
-            <div style="
-                position: absolute;
-                top: 40px;
-                left: 0;
-                width: 100%;
-                height: {total_height}px;
-                pointer-events: none;  /* so clicks go through */
-                border-radius: 0 0 10px 10px;
-                background-color: {color};
-                opacity: 0.2;
-                z-index: -1;
-            "></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    filtered = df.copy()
-    for col in sorted(columns):
-        if col in ["title", "genres", "styles", "concepts"]:
-            filtered = text_filter(filtered, col)
-        else:
-            filtered = multiselect_filter(filtered, col)
-
-    return filtered
+# Load dataset
+DATA_PATH = "data/divers1m_json/sample.json"
+df, meta = load_dataset(DATA_PATH)
 
 
+
+# ---------------- Filtered DataFrame ----------------
+filtered_df = df.copy()
+# --- Random Version Button on top ---
+# ---------------- Filtered DataFrame ----------------
 filtered_df = df.copy()
 
-filtered_df = filter_group_box("General Filters", color_general, color_groups[color_general], filtered_df)
-filtered_df = filter_group_box("Discogs Filters", color_discogs, color_groups[color_discogs], filtered_df)
-filtered_df = filter_group_box("Enriched Filters", color_enriched, color_groups[color_enriched], filtered_df)
+# Create a stable order for navigation
+ordered_indices = filtered_df.index.sort_values().tolist()
+if "detail_idx" not in st.session_state or st.session_state.detail_idx not in ordered_indices:
+    st.session_state.detail_idx = ordered_indices[0]
 
-tab1, tab2 = st.tabs(["Version Explorer", "Clique Explorer"])
+# # --- Random button on top ---
+# if st.sidebar.button("🎲 Random"):
+#     if not filtered_df.empty:
+#         st.session_state.detail_idx = random.choice(filtered_df.index.tolist())
+#         st.session_state.active_tab = 0  # stay in Version View
+#         st.rerun()
 
-# TAB 1: Random Version
-with tab1:
-    if filtered_df.empty:
-        st.warning("No entries match your filters.")
-        st.stop()
+# --- Prev / Next navigation ---
+col_nav1, col_nav2 = st.sidebar.columns([1, 1])
 
-    # Always show the button
-    if st.button("Pick another random version"):
-        random_idx = random.randint(0, len(filtered_df) - 1)
-        st.session_state.selected_version = filtered_df.iloc[random_idx]["version"]
-        st.rerun()
+with col_nav1:
+    if st.button("⬅️ Prev"):
+        current_pos = ordered_indices.index(st.session_state.detail_idx)
+        if current_pos > 0:
+            st.session_state.detail_idx = ordered_indices[current_pos - 1]
+            st.rerun()
 
-    # Select version
-    if "selected_version" in st.session_state:
-        version_id = st.session_state.selected_version
-        row = df[df["version"] == version_id]
-        if row.empty:
-            st.warning("Selected version not found after filtering.")
-            random_idx = random.randint(0, len(filtered_df) - 1)
-            row = filtered_df.iloc[[random_idx]]
-            st.session_state.selected_version = row.iloc[0]["version"]
-        row = row.iloc[0]
-    else:
-        random_idx = random.randint(0, len(filtered_df) - 1)
-        row = filtered_df.iloc[random_idx]
-        st.session_state.selected_version = row["version"]
-
-    # Display info
-    st.subheader(f"*{row.title}*")
-
-    # Two columns: left for stacked info boxes, right for video
-    left_col, right_col = st.columns([1, 1])
-
-    with left_col:
-        # Row 1: General
-        st.markdown(f"""
-            <div style="
-                background-color:{color_general};
-                padding:15px;
-                border-radius:10px;
-                font-size:20px;
-                color:white;
-            ">
-                <h4>General</h4>
-                <b>Clique-ID:</b> {row['clique']}<br>
-                <b>Version-ID:</b> {row['version']}<br>
-                <b>Subset:</b> {row['subset']}<br>
-                <b>Data Source:</b> {row['data_source']}
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Row 2: Discogs
-        st.markdown(f"""
-            <div style="
-                background-color:{color_discogs};
-                padding:15px;
-                border-radius:10px;
-                font-size:20px;
-                color:white;
-            ">
-                <h4>Discogs</h4>
-                <b>Artist:</b> {row['artist']}<br>
-                <b>Year:</b> {row['year']}<br>
-                <b>Country:</b> {row['country']}<br>
-                <b>Genre:</b> {row['genres']}<br>
-                <b>Style:</b> {row['styles']}
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Row 3: Enriched
-        st.markdown(f"""
-            <div style="
-                background-color:{color_enriched};
-                padding:15px;
-                border-radius:10px;
-                font-size:20px;
-                color:white;
-            ">
-                <h4>Enriched</h4>
-                <b>Concept:</b> {row['concepts']}<br>
-                <b>Instrument/Group:</b> {row['instruments_groups']}<br>
-                <b>Segment:</b> {row['segments']}<br>
-                <b>Tempo:</b> {round(row['tempo'], 2)}<br>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with right_col:
-        youtube_id = row.get("youtube_id", None)
-        if pd.notna(youtube_id):
-            youtube_url = f"https://www.youtube.com/watch?v={youtube_id}"
-            st.video(youtube_url)
-        else:
-            st.info("No YouTube video available for this entry.")
+with col_nav2:
+    if st.button("Next ➡️"):
+        current_pos = ordered_indices.index(st.session_state.detail_idx)
+        if current_pos < len(ordered_indices) - 1:
+            st.session_state.detail_idx = ordered_indices[current_pos + 1]
+            st.rerun()
 
         
-# TAB 2: Random Clique
-with tab2:
-    # Initialize selected_version if missing
-    if "selected_version" not in st.session_state:
-        st.session_state.selected_version = df.iloc[0]["version"]
-
-    selected_version = st.session_state.selected_version
-
-    # Get row and clique info
-    row = df[df["version"] == selected_version]
-    if row.empty:
-        st.error("Selected version not found in the dataset.")
-        st.stop()
-    row = row.iloc[0]
-
-    selected_clique = row.clique
-    clique_df = df[df["clique"] == selected_clique]
-
-    # Find first Discogs title or fallback
-    discogs_version = clique_df[clique_df["dvi"] == True]
-    clique_title = discogs_version.iloc[0].title if not discogs_version.empty else "N/A"
-    clique_writer = discogs_version.iloc[0].writers if not discogs_version.empty else "N/A"
-
-
-    # Show clique title as subheader
-    st.subheader(f"*{clique_title}*")
-
-    st.markdown(f"**Clique:** `{selected_clique}`")
-    st.markdown(f"**Written by:** `{clique_writer}`")
-    st.markdown(f"**Subset:** `{clique_df.subset.iloc[0].title()}`")
-    st.markdown(f"- **Number of versions:** {len(clique_df)}")
-
-    # Select version from the clique, default to current selected_version
-    versions_list = clique_df["version"].tolist()
-    try:
-        default_idx = versions_list.index(selected_version)
-    except ValueError:
-        default_idx = 0
-
-    display_df = clique_df[DISPLAY_COLS].rename(columns={col: prettify_column_name(col) for col in DISPLAY_COLS})
-    st.dataframe(display_df)
-
+# ---------------- Sidebar Filters ----------------
     
+st.sidebar.header("Filters")
+
+# --- Filters below the button ---
+subset_filter = st.sidebar.multiselect("Subset", options=sorted(df["subset"].dropna().unique()))
+genre_filter = st.sidebar.multiselect(
+    "Genres", options=sorted({g for lst in df["genres_list"] for g in lst})
+)
+concept_filter = st.sidebar.multiselect(
+    "Concepts", options=sorted({c for lst in df["concepts_list"] for c in lst})
+)
+instruments_filter = st.sidebar.multiselect(
+    "Instruments/Groups", options=sorted({i for lst in df["instruments_list"] for i in lst})
+)
+segments_filter = st.sidebar.multiselect(
+    "Segments", options=sorted({s for lst in df["segments_list"] for s in lst})
+)
+artist_filter = st.sidebar.text_input("Search Artist")
+title_filter = st.sidebar.text_input("Search Title")
+
+# --- Mode & annotation controls ---
+# --- Annotation controls ---
+st.sidebar.header("Annotation Controls")
+
+if "annotator" not in st.session_state:
+    st.session_state.annotator = ""
+if "mode" not in st.session_state:
+    st.session_state.mode = "view"
+
+# Annotator name
+annotator = st.sidebar.text_input("Annotator name", value=st.session_state.annotator)
+st.session_state.annotator = annotator
+
+# Mode selector – default to current session mode
+chosen_mode = st.sidebar.radio(
+    "Choose mode:",
+    ["view", "annotate"],
+    index=0 if st.session_state.mode == "view" else 1
+)
+
+# Only switch to annotate if annotator name is provided
+if chosen_mode == "annotate" and not st.session_state.annotator:
+    st.sidebar.error("Enter annotator name to enable annotation mode")
+    st.session_state.mode = "view"
+else:
+    st.session_state.mode = chosen_mode
+ 
+# ---------------- Tabs ----------------
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = 0
+tab1, tab2 = st.tabs(["Version View", "List View"])
+
+# ---------------- Version View ----------------
+with tab1:
+    if filtered_df.empty:
+        st.info("No items match the current filters.")
+    else:
+        # Ensure current detail_idx exists
+        if "detail_idx" not in st.session_state or st.session_state.detail_idx not in filtered_df.index:
+            st.session_state.detail_idx = random.choice(filtered_df.index.tolist())
+        row = filtered_df.loc[st.session_state.detail_idx]
+
+        # --- Random button in sidebar ---
+        if st.sidebar.button("🎲 Random"):
+            if not filtered_df.empty:
+                st.session_state.detail_idx = random.choice(filtered_df.index.tolist())
+                st.session_state.active_tab = 0
+                st.rerun()
+
+        col1, col2 = st.columns([2, 3])
+
+        # Utility function to render tags in columns
+        def render_tags_columns(tags, row_key, max_cols=3):
+            for i in range(0, len(tags), max_cols):
+                cols = st.columns(max_cols)
+                for j, tag in enumerate(tags[i:i+max_cols]):
+                    col = cols[j]
+                    yield col, tag, f"{row_key}_{tag}"
+
+        # Render metadata
+        with col1:
+            st.markdown(f"### {row['title']}")
+            artist = row.get("artist", "Unknown")
+            year = row.get("year", "Unknown")
+            st.markdown(f'<div style="font-size:20px; margin-bottom:4px;">by <b>{artist}</b> from <b>{year}</b></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:18px; margin-bottom:2px;"><b>Clique:</b> {row["clique"]}  |  <b>Version:</b> {row["version"]}  |  <b>Youtube ID:</b> {row["youtube_id"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:18px; margin-bottom:2px;"><b>Subset:</b> {row["subset"]}  |  <b>Data Source:</b> {row["data_source"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:18px; margin-bottom:8px;"><b>Tempo:</b> {row.get("tempo", "Unknown")}</div>', unsafe_allow_html=True)
+            st.markdown('<div style="margin-top:10px;"><b>Tags:</b></div>', unsafe_allow_html=True)
+
+            if st.session_state.mode == "annotate":
+                st.markdown("#### Annotation Mode")
+
+                # Load previous annotation if exists
+                prev_annotation = st.session_state.annotations[
+                    (st.session_state.annotations["youtube_id"] == row["youtube_id"]) &
+                    (st.session_state.annotations["clique"] == row["clique"]) &
+                    (st.session_state.annotations["version"] == row["version"]) &
+                    (st.session_state.annotations["annotator"] == st.session_state.annotator)
+                ]
+                prev_unmarked = { "genres_list": [], "concepts_list": [], "instruments_list": [], "segments_list": [] }
+                prev_note = ""
+                prev_confirm = True
+                if not prev_annotation.empty:
+                    last = prev_annotation.iloc[-1]
+                    for colname in ["genres_list", "concepts_list", "instruments_list", "segments_list"]:
+                        if f"{colname}_removed" in last:
+                            val = last[f"{colname}_removed"]
+                            if isinstance(val, list):
+                                prev_unmarked[colname] = val
+                    prev_note = last.get("note", "")
+                    prev_confirm = last.get("confirm_version", True)
+
+                # Confirm Version checkbox
+                confirm_key = f"confirm_{row['youtube_id']}_{row['clique']}_{row['version']}_{st.session_state.annotator}"
+                confirm_version = st.checkbox("Confirm Version", value=prev_confirm, key=confirm_key)
+
+                unmarked = {}
+
+                # Render tags side by side in columns
+                for colname, label in [
+                    ("genres_list", "Genres"),
+                    ("concepts_list", "Concepts"),
+                    ("instruments_list", "Instrument Groups"),
+                    ("segments_list", "Segments"),
+                ]:
+                    tags = row[colname] if isinstance(row[colname], list) else []
+                    st.write(f"**{label}:**")
+                    unchecked = []
+                    for col, tag, key in render_tags_columns(tags, f"{row['youtube_id']}_{row['clique']}_{row['version']}_{colname}"):
+                        is_checked = True
+                        if tag in prev_unmarked.get(colname, []):
+                            is_checked = False
+                        checked = col.checkbox(tag, value=is_checked, key=key)
+                        if not checked:
+                            unchecked.append(tag)
+                    if unchecked:
+                        unmarked[colname] = unchecked
+
+                # Single-line note below tags
+                note_key = f"note_{row['youtube_id']}_{row['clique']}_{row['version']}"
+                note = st.text_input("Additional note", key=note_key, value=prev_note)
+
+                # Build annotation row
+                ann_row = {
+                    "clique": row["clique"],
+                    "version": row["version"],
+                    "youtube_id": row["youtube_id"],
+                    "annotator": st.session_state.annotator,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "note": note,
+                    "confirm_version": confirm_version,
+                }
+                for colname, unchecked_tags in unmarked.items():
+                    ann_row[f"{colname}_removed"] = unchecked_tags
+
+                # Remove previous entry for this clique/version/youtube_id/annotator
+                if not st.session_state.annotations.empty:
+                    st.session_state.annotations = st.session_state.annotations[
+                        ~(
+                            (st.session_state.annotations["youtube_id"] == row["youtube_id"]) &
+                            (st.session_state.annotations["clique"] == row["clique"]) &
+                            (st.session_state.annotations["version"] == row["version"]) &
+                            (st.session_state.annotations["annotator"] == st.session_state.annotator)
+                        )
+                    ]
+
+                # Append new annotation
+                st.session_state.annotations = pd.concat(
+                    [st.session_state.annotations, pd.DataFrame([ann_row])],
+                    ignore_index=True
+                )
+
+                # **Auto-save on any change**
+                st.session_state.annotations.to_json("annotations.json", orient="records", indent=2)
+
+            else:
+                # View mode
+                def render_tags_with_cues_dict(label, tags, cues_list, fontsize="18px", row_spacing="2px"):
+                    if isinstance(tags, str):
+                        tags = [tags] if tags else []
+                    valid_tags = [t for t in tags if t is not None and not (isinstance(t, float) and pd.isna(t))]
+                    if valid_tags:
+                        tags_html = " ".join([f"<code>{v}</code>" for v in valid_tags])
+                        st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> {tags_html}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing};"><b>{label}:</b> <i>none</i></div>', unsafe_allow_html=True)
+
+                    tag_to_cues = {}
+                    for i, tag in enumerate(tags):
+                        if tag is None or (isinstance(tag, float) and pd.isna(tag)):
+                            continue
+                        if i < len(cues_list) and cues_list[i] is not None:
+                            tag_to_cues[tag] = cues_list[i]
+                        else:
+                            tag_to_cues[tag] = []
+
+                    if tag_to_cues:
+                        st.markdown(f'<div style="font-size:{fontsize}; margin-bottom:{row_spacing}; margin-left:10px; color:gray;"><i>Cues:</i> {tag_to_cues}</div>', unsafe_allow_html=True)
+                    
+                # Fix for genres and styles: ensure list, even if NaN
+                def safe_str_to_list(val):
+                    if isinstance(val, str):
+                        return val.split(", ") if val else []
+                    elif isinstance(val, list):
+                        return val
+                    else:
+                        return []
+
+                genres_list = safe_str_to_list(row["genres"])
+                styles_list = safe_str_to_list(row["styles"])
+
+                render_tags_with_cues_dict("Genres", genres_list, [])
+                render_tags_with_cues_dict("Styles", styles_list, [])
+                render_tags_with_cues_dict("Concepts", row["concepts_list"], row["concepts_cues_list"])
+                render_tags_with_cues_dict("Instrument Groups", row["instruments_list"], row["instruments_cues_list"])
+                render_tags_with_cues_dict("Segments", row["segments_list"], row["segments_cues_list"])
+
+        # ---------------- Video Column ----------------
+        with col2:
+            if row['youtube_id']:
+                youtube_id = row['youtube_id']
+                st.markdown(f"""
+                <iframe 
+                    width="100%" 
+                    height="450" 
+                    src="https://www.youtube.com/embed/{youtube_id}" 
+                    frameborder="0" 
+                    allowfullscreen>
+                </iframe>
+                """, unsafe_allow_html=True)
+
+
+# ---------------- List View ----------------
+with tab2:
+    st.subheader("Dataset Overview")
+    display_df = filtered_df[DISPLAY_COLS + ["youtube_id"]].copy()
+    display_df = display_df.sort_values(by=["clique", "version"])
+    display_df = display_df.rename(columns={col: col.replace("_", " ").title() for col in display_df.columns})
+    st.dataframe(display_df, hide_index=True, use_container_width=True)

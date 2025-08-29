@@ -131,6 +131,6 @@ Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.
 # Explorer
 Having downloaded and extracted the JSON metadata from Zenodo, you can run our explorer app to discover the dataset. For instance, is you have the file under `data/divers1m.json`, run:
 ```
-streamlit run explorer.py --json_file data/divers1m.json
+streamlit run explorer.py
 ```
 ![Explorer App](figures/explorer.png)

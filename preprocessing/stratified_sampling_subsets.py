@@ -43,14 +43,14 @@ def load_dataset(path):
 
     return df, meta
 
-def stratified_sample(df, dvi_ratio, n_classes=1000, m_per_class=2, rnd=42, clique_col='clique', dvi_col='dvi'):
+def stratified_sample(df, dvi_ratio, n_classes=1000, m_per_class=2, split="test", rnd=42, clique_col='clique', dvi_col='dvi'):
     """
     Sample a mixed dataframe from DVI and non-DVI items per clique.
     """
     np.random.seed(rnd)
 
     # Filter cliques that have at least m_per_class in both DVI and non-DVI
-    df_filtered = df.groupby(clique_col).filter(
+    df_filtered = df.loc[df.split == split].groupby(clique_col).filter(
         lambda g: (g[dvi_col].eq(True).sum() >= m_per_class) 
                   and (g[dvi_col].eq(False).sum() >= m_per_class)
     )
@@ -110,14 +110,17 @@ def print_df_summary(df, subset="overall"):
               f"Std: {version_per_clique.std():>5.2f}")
     print("=" * 40)
 
-def save_df_as_torch(df, out_path, split_col="split"):
+def save_df_as_torch(df, out_path, split, split_col="split"):
     """Save df as torch file with 'info' and 'split' dicts."""
     index = df["clique"].astype(str) + ":" + df["version"].astype(str)
     drop_cols = [split_col] if split_col in df.columns else []
     info_df = df.drop(columns=drop_cols)
     info_dict = {idx: dict(zip(info_df.columns, row))
                  for idx, row in zip(index, info_df.itertuples(index=False, name=None))}
-    split_dict = df.groupby("clique")["version"].apply(list).to_dict()
+    
+    remaining_splits = [s for s in ["train", "valid", "test"] if s != split]
+    split_dict = {s: {} for s in remaining_splits}
+    split_dict[split] = df.groupby("clique")["version"].apply(list).to_dict()
     torch.save({"info": info_dict, "split": split_dict}, out_path)
     print(f"Saved torch file to {out_path}")
 
@@ -130,6 +133,7 @@ def parse_args():
                         default="data/divers1m_json/stratified_samples")
     parser.add_argument("--m", type=int, default=3, help="Number of items per class.")
     parser.add_argument("--n", type=int, default=1000, help="Number of classes to sample.")
+    parser.add_argument("--split", type=str, default="test", help="Dataset subset split to sample from.")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -144,9 +148,10 @@ if __name__ == "__main__":
             dvi_ratio=frac,      # Desired proportion of True in 'dvi'
             m_per_class=args.m,      # Number of items per class
             n_classes=args.n,        # How many classes to sample
+            split=args.split,       # Which split to sample from
             rnd=42     # For reproducibility
         )
         print(f"\n=== Summary for dvi_fraction={frac} ===")
         print_df_summary(subset, "overall")
-        save_df_as_torch(subset, os.path.join(args.output, f"sample{frac}.pt"))
+        save_df_as_torch(subset,os.path.join(args.output, f"sample{frac}.pt"), args.split)
 

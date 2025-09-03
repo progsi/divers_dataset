@@ -1,4 +1,5 @@
 import json
+import torch
 import os
 import ast
 import random
@@ -7,6 +8,7 @@ import pandas as pd
 import streamlit as st
 import datetime
 
+DATA_PATH = "data/divers1m_torch/rich/sample.pt"
 
 st.set_page_config(layout="wide")
 
@@ -82,17 +84,29 @@ def load_dataset(path):
                 clique_to_split[clique] = split_name
         return clique_to_split
 
-    with open(path, "r") as f:
-        meta = json.load(f)
-    if isinstance(meta, dict) and "info" in meta:
+    if path.endswith(".json"):
+        with open(path, "r") as f:
+            meta = json.load(f)
+    elif path.endswith(".pt"):
+        meta = torch.load(path, weights_only=False)
+    if isinstance(meta, dict):
         info = meta["info"]
-        split = meta["split"]
+        if "split" in meta:
+            split = meta["split"]
+        else:
+            split = {}
     else:
         info, split = meta
 
     df = pd.DataFrame.from_dict(info, orient="index")
-    clique2split = inverse_split_dict(split)
-    df["subset"] = df["clique"].map(clique2split).str.title()
+    if "subset" not in df.columns:
+        if "split" in df.columns:
+            df["subset"] = df["split"]
+        elif len(split) > 0:
+            clique2split = inverse_split_dict(split)
+            df["subset"] = df["clique"].map(clique2split).str.title()
+        else:
+            df["subset"] = "Unknown"
     
     if "youtube_id" not in df.columns:
         df["youtube_id"] = df.filename.apply(lambda x: x.split("/")[-1].split(".")[0])
@@ -134,10 +148,7 @@ def load_dataset(path):
 st.title("🎶 DiVers1M Explorer")
 
 # Load dataset
-DATA_PATH = "data/divers1m_json/sample.json"
 df, meta = load_dataset(DATA_PATH)
-
-
 
 # ---------------- Filtered DataFrame ----------------
 filtered_df = df.copy()
@@ -415,4 +426,5 @@ with tab2:
     display_df = filtered_df[DISPLAY_COLS + ["youtube_id"]].copy()
     display_df = display_df.sort_values(by=["clique", "version"])
     display_df = display_df.rename(columns={col: col.replace("_", " ").title() for col in display_df.columns})
-    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    rows_to_show = st.slider("Rows to display", 100, 5000, 1000, step=100)
+    st.dataframe(df.sample(rows_to_show))

@@ -7,6 +7,7 @@ A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.co
 - *DiVers-1M*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.  
 ## Explorer
 Discover our dataset in our [explorer app](https://divers1m.streamlit.app/).
+![Explorer GUI](figures/explorer.png)
 
 ## Conda Environment
 - installation of the conda environment by running  `conda env create -f env.yaml`

@@ -5,6 +5,9 @@
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *Discogs-VI-YT-2* or *DVI2*: a cleaned version of *DVI* which contains slightly less versions and cliques, but a cleaner assignment of versions to cliques. 
 - *DiVers-1M*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.  
+## Explorer
+Discover our dataset in our [explorer app](https://divers1m.streamlit.app/).
+![Explorer GUI](figures/explorer.png)
 
 ## Conda Environment
 - installation of the conda environment by running  `conda env create -f env.yaml`
@@ -127,10 +130,3 @@ The dataset is very large and depending on the use case a respective subset migh
 
 ### Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 
-
-# Explorer
-Having downloaded and extracted the JSON metadata from Zenodo, you can run our explorer app to discover the dataset. For instance, is you have the file under `data/divers1m.json`, run:
-```
-streamlit run explorer.py
-```
-![Explorer App](figures/explorer.png)

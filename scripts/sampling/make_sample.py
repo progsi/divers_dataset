@@ -41,7 +41,33 @@ def load_dataset(path):
     df["dvi"] = ~df.apply(lambda x: x.youtube_id in x.version, axis=1)
     
     return df, meta    
+
+def add_first_version_info(df):
+    """
+    Add first version info to each row in the DataFrame.
+    """
+    cols_to_extract = [
+        'track_title', 'track_artist_names',
+        'track_writer_names', 'release_artist_names', 'released'
+    ]
     
+    # Ensure correct ordering by clique + version
+    df = df.sort_values(["clique", "version"])
+    
+    # Get the first "V-" row per clique
+    ref_rows = (
+        df[df["version"].str.startswith("V-")]
+        .groupby("clique")
+        .first()[cols_to_extract]
+    )
+    
+    # Map them back into new "first_" columns
+    for col in cols_to_extract:
+        df[f"first_{col}"] = df["clique"].map(ref_rows[col])
+    
+    return df
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, default="data/divers1m_torch/divers1m.pt", help="Path to dataset")
@@ -53,6 +79,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     df, meta = load_dataset(args.input)
+    df = add_first_version_info(df)
     sample = {
         "info": df.sample(n=args.n, random_state=42).to_dict(orient="index"),
     }

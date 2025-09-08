@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from rapidfuzz import process, fuzz
 
-from string_processor import StringProcessor
+from scripts.preprocessing.string_processor import StringProcessor
 
 TITLES_KEY = "track_title_cleaned"
 ARTISTS_KEY = "release_artist_names"

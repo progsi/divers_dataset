@@ -1,6 +1,6 @@
 # Discogs-VI-2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16743529.svg)](https://doi.org/10.5281/zenodo.16743529)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16993368.svg)](https://doi.org/10.5281/zenodo.16993368)
 
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *Discogs-VI-YT-2* or *DVI2*: a cleaned version of *DVI* which contains slightly less versions and cliques, but a cleaner assignment of versions to cliques. 

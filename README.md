@@ -22,7 +22,7 @@ We do the following to cleanup. This should result in a cleaner version of *Disc
 ##### Normalizing the writers with an LLM
 Here is an example with the LLM *Qwen3-30B*. The mapping from the CLI parameter to the model is hard-coded in the script.
 ```
-python scripts/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl ndata/aux/norm_writers.jsonl --llm qwen
+python scripts/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/norm_writers.jsonl --llm qwen
 ```
 ##### Finding versions of the same clique with different normalized writers
 This results in new cliques.
@@ -102,11 +102,15 @@ This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), 
 ### Finalize
 Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:
 
-`python scripts/create_divers/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32`
+```
+python scripts/create_divers/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32
+```
 
 Afterwards:
 
-`python scripts/create_divers/finalize.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt`
+```
+python scripts/create_divers/finalize.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt
+```
 
 #### Make Sub-Datasets
 The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:

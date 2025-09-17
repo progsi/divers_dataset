@@ -102,11 +102,15 @@ This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), 
 ### Finalize
 Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:
 
-`python scripts/create_divers/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32`
+```
+python scripts/create_divers/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32
+```
 
 Afterwards:
 
-`python scripts/create_divers/finalize.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt`
+```
+python scripts/create_divers/finalize.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt
+```
 
 #### Make Sub-Datasets
 The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:

@@ -22,7 +22,7 @@ We do the following to cleanup. This should result in a cleaner version of *Disc
 ##### Normalizing the writers with an LLM
 Here is an example with the LLM *Qwen3-30B*. The mapping from the CLI parameter to the model is hard-coded in the script.
 ```
-python scripts/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl ndata/aux/norm_writers.jsonl --llm qwen
+python scripts/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/norm_writers.jsonl --llm qwen
 ```
 ##### Finding versions of the same clique with different normalized writers
 This results in new cliques.

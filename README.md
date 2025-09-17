@@ -89,7 +89,7 @@ In `make_splits.ipynb` we make two subsets. First, the full *both* dataset. We f
 The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
 Afterwards, we create the splits:
 ```
-python scripts/create_divers/make_splits.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
+python scripts/create_divers/make_splits2.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
 ### Manual Curation of Concepts
 For these steps, we do not make use of any Python scripts but rather manual annotation and the [GUI version of *Qwen3-30B*](https://chat.qwen.ai/).

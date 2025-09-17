@@ -1,12 +1,13 @@
 import argparse
 from typing import List
 import json
+import os
 import pandas as pd
 from tqdm import tqdm
 
 from rapidfuzz import process, fuzz
 
-from scripts.preprocessing.string_processor import StringProcessor
+from string_processor import StringProcessor
 
 TITLES_KEY = "track_title_cleaned"
 ARTISTS_KEY = "release_artist_names"
@@ -122,6 +123,7 @@ def main(discogs_path, unique_titles_path, output, max_index):
     
     print("Saving results...")
     df = df.drop(columns=["youtube_text"])
+    os.makedirs(os.path.dirname(output), exist_ok=True)
     df.to_csv(output, sep="\t", index=False)
 
 

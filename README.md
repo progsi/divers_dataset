@@ -97,7 +97,7 @@ This is described in the paper, but essentially we:
 - rank the 1,000 most frequently occuring $n$-grams for $n \in \{1,2,3\}$
 - label a concept manually (except for artist names)
 - re-iterate through our curated list (e.g., re-group concetps)
-This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), instruments and genres/styles. Next, we translate these using again *Qwen3* with [this prompt](create_divers/concepts_prompt.md) and write the corresponding files YAML into `data/concepts/.
+This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), instruments and genres/styles. Next, we translate these using *Qwen3* with [this prompt](create_divers/concepts_prompt.md) and write the corresponding files YAML into `data/concepts/.
 
 ### Finalize
 Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:

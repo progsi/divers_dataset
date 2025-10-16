@@ -100,7 +100,7 @@ def collect_youtube_metadata(
         One dict per successfully‑read *.meta file.
     """
     metadata = torch.load(path)
-    items_iter = list(metadata[0].items())  # materialize so tqdm can get length
+    items_iter = list(metadata["info"].items())  # materialize so tqdm can get length
     results: list[dict[str, Any]] = []
 
     with ThreadPoolExecutor(max_workers=njobs) as pool, tqdm(

@@ -10,8 +10,29 @@ import pandas as pd
 import torch
 from tqdm.auto import tqdm
 
-from src.lib.dataset import DVI_KEYS, YT_KEYS
+DVI_KEYS = [
+    "clique_id",
+    "version_id",
+    "youtube_id",
+    "track_writer_names",
+    "release_artist_names",
+    "release_genres",
+    "release_styles",
+    "country",
+    "labels",
+    "formats",
+    "released"
+]
 
+YT_KEYS = [
+    "title",
+    "description",
+    "tags",
+    "categories",
+    "channel",
+    "upload_date",
+    "view_count"
+]
 
 def preprocess(s: str, exclude: str = "'", apostrophes: str = "'’‘`´ʻʼʽ") -> str:
     """Only retain space, latin chars and numbers. Remove attached special chars
@@ -52,40 +73,40 @@ def preprocess(s: str, exclude: str = "'", apostrophes: str = "'’‘`´ʻʼʽ"
     s = isolate_special_chars(s, exclude)
     return s
 
-def load_concepts(concept_file):
+def load_tags(tags_file):
     """Load a YAML file and normalize all cues to snake_case."""
-    with open(concept_file, "r", encoding="utf-8") as f:
-        concepts = yaml.safe_load(f)
+    with open(tags_file, "r", encoding="utf-8") as f:
+        tags = yaml.safe_load(f)
 
     def __preprocess(s):
         return s.lower().replace("_", " ").replace("-", " ")
         
-    normalized_concepts = {}
-    for concept, langs_or_cues in concepts.items():
+    normalized_tags = {}
+    for tag, langs_or_cues in tags.items():
         if isinstance(langs_or_cues, dict):
-            normalized_concepts[concept] = {
+            normalized_tags[tag] = {
                 lang: [__preprocess(c) for c in cues]
                 for lang, cues in langs_or_cues.items()
             }
         elif isinstance(langs_or_cues, list):
-            normalized_concepts[concept] = {
+            normalized_tags[tag] = {
                 "original": [__preprocess(c) for c in langs_or_cues]
             }
-    return normalized_concepts
+    return normalized_tags
 
-def match_concepts(df, concepts, name, columns):
+def match_tags(df, tags, name, columns):
     """
-    Match concepts from a YAML file to the specified DataFrame columns.
+    Match tags from a YAML file to the specified DataFrame columns.
 
     Args:
         df (pd.DataFrame): The input dataframe.
-        concepts (dict): Concept dict.
-        name (str): Name of the concept file, used for naming the output column.
-        columns (list[str]): List of column names to check for concept cues.
+        tags (dict): tag dict.
+        name (str): Name of the tag file, used for naming the output column.
+        columns (list[str]): List of column names to check for tag cues.
         preprocess (function): Function to preprocess column text.
 
     Returns:
-        pd.DataFrame: Original DataFrame with an added `concept_matches` column.
+        pd.DataFrame: Original DataFrame with an added `tag_matches` column.
     """
     
     def match_row(row, columns=["yt_title", "yt_description", "yt_tags"]):
@@ -93,18 +114,18 @@ def match_concepts(df, concepts, name, columns):
         for col in columns:
             text = preprocess(str(row[col]))
             
-            # make sure not to match song-related info rather than concepts
+            # make sure not to match song-related info rather than tags
             title = row["title"] if isinstance(row["title"], str) else ""
             release_artist_names = row["release_artist_names"] if isinstance(row["release_artist_names"], list) else []
             track_writer_names = row["track_writer_names"] if isinstance(row["track_writer_names"], list) else []
             stopwords = [title] + release_artist_names + track_writer_names
             stopwords = [preprocess(w) for w in stopwords if isinstance(w, str)]
-            for concept, lang_map in concepts.items():
+            for tag, lang_map in tags.items():
                 for cues in lang_map.values():  # all languages
                     for cue in cues:
-                        if cue in text and concept not in matches[col] and cue not in stopwords:
-                            matches[col][concept] = cue
-                            break  # stop at first match for this concept
+                        if cue in text and tag not in matches[col] and cue not in stopwords:
+                            matches[col][tag] = cue
+                            break  # stop at first match for this tag
         return dict(matches)
 
     df[f"matched_{name}"] = df.parallel_apply(match_row, axis=1)
@@ -130,7 +151,7 @@ def parse_args():
         "--dvi",
         type=str,
         help="Path to the DVI jsonlines file.",
-        default="data/dvi.jsonl",
+        default="data/dvi.jsonl", # NOTE: this is old, why do we need this again?
     )
     parser.add_argument(
         "--yt",
@@ -139,16 +160,16 @@ def parse_args():
         default="data/yt.parquet",
     )
     parser.add_argument(
-        "--concept_dir",
+        "--tags_file",
         type=str,
-        help="Path to the directory with yaml files with concepts.",
-        default="data/",
+        help="Path to the directory with yaml files with tags.",
+        default="data/tags/tags_multilingual.yaml",
     )
     parser.add_argument(
         "--tempo_file",
         type=str,
         help="Path to the PyTorch file with extracted tempo info.",
-        default="data/tempo.pt",
+        default=None # "data/tempo.pt",
     )
     parser.add_argument(
         "--with_onsets",
@@ -174,19 +195,14 @@ def clean_path_keys(tempo_dict):
     return tempo2
 
 def deduplicate_youtube_versions(df):
-    # Identify duplicated youtube_ids (more than once)
-    duplicated_ids = df['youtube_id'][df['youtube_id'].duplicated(keep=False)]
+    # Identify duplicated combinations of youtube_id and clique_id
+    duplicated_mask = df.duplicated(subset=['youtube_id', 'clique'], keep='first')
 
-    # Filter rows where youtube_id is duplicated and youtube_id == version
-    to_drop = df[
-        df['youtube_id'].isin(duplicated_ids) &
-        (df['youtube_id'] == df['version'])
-    ]
-
-    # Drop those rows
-    df_cleaned = df.drop(to_drop.index)
+    # Drop the duplicates, keeping the first occurrence
+    df_cleaned = df[~duplicated_mask].copy()
 
     return df_cleaned
+
 
 def filter_non_singleton_cliques(df):
     """
@@ -255,7 +271,12 @@ def main() -> None:
     args = parse_args()
 
     # Dataset metadata
-    metadata, split = torch.load(args.input)
+    input_data = torch.load(args.input)
+    if isinstance(input_data, dict) and "info" in input_data and "split" in input_data:
+        metadata = input_data["info"]
+        split = input_data["split"]
+    else:
+        metadata, split = input_data
     df = pd.DataFrame(metadata).T
     df["youtube_id"] = df["filename"].apply(filename_to_youtube_id)
     print(f"Loaded metadata with {len(df)} entries.")
@@ -317,17 +338,15 @@ def main() -> None:
             on="youtube_id",
         ).progress_apply(lambda x: x)
         
-    # Match concepts from YAML files
+    # Match tags from YAML files
     pandarallel.initialize(progress_bar=True)
-    print("Matching concepts from YAML files...")
-    concept_files = [f for f in os.listdir(args.concept_dir) if f.endswith('.yaml')]
-    for concept_file in concept_files:
-        print(f"Processing concept file: {concept_file}")
-        concepts = load_concepts(os.path.join(args.concept_dir, concept_file))
-            
-        df = match_concepts(df, concepts, 
-                            name=concept_file.split(os.sep)[-1].split('.')[0],
-                            columns=["yt_title", "yt_description", "yt_tags"])
+    print("Matching tags from YAML files...")
+    print(f"Processing tags file: {args.tags_file}")
+    tags = load_tags(args.tags_file)
+        
+    df = match_tags(df, tags, 
+                        name=args.tags_file.split(os.sep)[-1].split('.')[0],
+                        columns=["yt_title", "yt_description", "yt_tags"])
     
     # Convert DataFrame to list of dicts and save as torch file
     df["cid:vid"] = df.apply(lambda row: row["clique"] + ':' + row["version"], axis=1)
@@ -335,8 +354,6 @@ def main() -> None:
     df = df.drop(columns=["clique_id", "version_id"], errors='ignore')
      # final cleanups
     df = deduplicate_youtube_versions(df)
-    df = filter_non_singleton_cliques(df)
-    df = deduplicate_false_cliques(df)
     df = filter_non_singleton_cliques(df)
     
     metadata_dicts = df.set_index("cid:vid").to_dict(orient="index")

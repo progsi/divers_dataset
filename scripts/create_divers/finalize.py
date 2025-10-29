@@ -102,7 +102,6 @@ def match_tags(df, tags, name, columns):
         df (pd.DataFrame): The input dataframe.
         tags (dict): tag dict.
         name (str): Name of the tag file, used for naming the output column.
-        columns (list[str]): List of column names to check for tag cues.
         preprocess (function): Function to preprocess column text.
 
     Returns:
@@ -118,12 +117,14 @@ def match_tags(df, tags, name, columns):
             title = row["title"] if isinstance(row["title"], str) else ""
             release_artist_names = row["release_artist_names"] if isinstance(row["release_artist_names"], list) else []
             track_writer_names = row["track_writer_names"] if isinstance(row["track_writer_names"], list) else []
+            # avoid matching tags to the title, artist names, writer names
             stopwords = [title] + release_artist_names + track_writer_names
             stopwords = [preprocess(w) for w in stopwords if isinstance(w, str)]
             for tag, lang_map in tags.items():
                 for cues in lang_map.values():  # all languages
                     for cue in cues:
-                        if cue in text and tag not in matches[col] and cue not in stopwords:
+                        # match whole words only
+                        if re.search(rf"\b{re.escape(cue)}\b", text) and tag not in matches[col] and cue not in stopwords:
                             matches[col][tag] = cue
                             break  # stop at first match for this tag
         return dict(matches)
@@ -311,6 +312,7 @@ def main() -> None:
             has_tempo = False
             df_tempo = pd.DataFrame([])
     else:
+        print("No tempo data file provided or file does not exist.")
         pt_tempo = pd.DataFrame([])
 
     tqdm.pandas()

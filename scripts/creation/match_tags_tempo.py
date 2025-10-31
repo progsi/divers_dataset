@@ -94,7 +94,7 @@ def load_tags(tags_file):
             }
     return normalized_tags
 
-def match_tags(df, tags, name, columns):
+def match_tags(df, tags):
     """
     Match tags from a YAML file to the specified DataFrame columns.
 
@@ -114,22 +114,26 @@ def match_tags(df, tags, name, columns):
             text = preprocess(str(row[col]))
             
             # make sure not to match song-related info rather than tags
-            title = row["title"] if isinstance(row["title"], str) else ""
-            release_artist_names = row["release_artist_names"] if isinstance(row["release_artist_names"], list) else []
-            track_writer_names = row["track_writer_names"] if isinstance(row["track_writer_names"], list) else []
-            # avoid matching tags to the title, artist names, writer names
-            stopwords = [title] + release_artist_names + track_writer_names
+            stopwords = row.get("stopwords", [])
             stopwords = [preprocess(w) for w in stopwords if isinstance(w, str)]
             for tag, lang_map in tags.items():
                 for cues in lang_map.values():  # all languages
                     for cue in cues:
+                        # skip if cue appears inside any stopword text
+                        if any(re.search(rf"\b{re.escape(cue)}\b", sw) for sw in stopwords):
+                            continue
+
                         # match whole words only
-                        if re.search(rf"\b{re.escape(cue)}\b", text) and tag not in matches[col] and cue not in stopwords:
+                        if re.search(rf"\b{re.escape(cue)}\b", text) and tag not in matches[col]:
                             matches[col][tag] = cue
                             break  # stop at first match for this tag
         return dict(matches)
 
-    df[f"matched_{name}"] = df.parallel_apply(match_row, axis=1)
+    # get series of dicts with matches
+    matches = df.parallel_apply(match_row, axis=1)
+    for col in ["yt_title", "yt_description", "yt_tags"]:
+        df[f"tags_{col}"] = matches.apply(lambda x: list(x.get(col, {}).keys()))
+        df[f"cues_{col}"] = matches.apply(lambda x: list(x.get(col, {}).values()))
     return df
 
 def parse_args():
@@ -345,10 +349,17 @@ def main() -> None:
     print("Matching tags from YAML files...")
     print(f"Processing tags file: {args.tags_file}")
     tags = load_tags(args.tags_file)
-        
-    df = match_tags(df, tags, 
-                        name=args.tags_file.split(os.sep)[-1].split('.')[0],
-                        columns=["yt_title", "yt_description", "yt_tags"])
+    
+    # TODO: add stopwords column based on clique metadata
+    attrs = [s for s in ["artist", "title", "track_writer_names", "release_artist_names"] if s in df.columns]
+    clique_metadata = df[["clique"] + attrs].groupby("clique").agg(list)
+    for attr in attrs:
+        clique_metadata[attr] = clique_metadata[attr].apply(lambda x: list(set([s for s in x if isinstance(s, str)])))
+    clique_metadata["stopwords"] = clique_metadata["artist"] + clique_metadata["title"]
+    df = pd.merge(df, clique_metadata["stopwords"].reset_index(), on="clique", how="left")
+
+    df = match_tags(df, tags)
+    df = df.drop(columns=["stopwords"])
     
     # Convert DataFrame to list of dicts and save as torch file
     df["cid:vid"] = df.apply(lambda row: row["clique"] + ':' + row["version"], axis=1)

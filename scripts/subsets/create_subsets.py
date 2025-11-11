@@ -157,6 +157,72 @@ def proportional_downsample(dataset, fraction=0.5, min_items_per_class=2, seed=N
 
     return new_dataset
 
+def drop_non_tagged_items(dataset, tag_fields=["tags_yt_title"], min_items_per_clique=2, 
+                          delete_dvi=False, selected_tags=None):
+    """
+    Keep only items that have at least one tag in specified tag fields.
+    If selected_tags is specified, items must contain at least one of those tags.
+    Drops cliques with fewer than min_items_per_clique items.
+
+    Args:
+        dataset: dict with 'info' and 'split'
+        tag_fields: list of fields to check for tags
+        min_items_per_clique: minimum items per clique to keep
+        delete_dvi: whether to remove DVI (Derived Video Instance) items
+        selected_tags: optional list or set of tags to filter by
+
+    Returns:
+        new_dataset dict with same format as original
+    """
+    info = deepcopy(dataset["info"])
+    splits = dataset.get("split", {})
+
+    # Normalize selected_tags to a set for faster lookup
+    if selected_tags is not None:
+        selected_tags = set(selected_tags)
+
+    # 1. Build set of tagged items (and optionally include DVI items)
+    tagged_items = set()
+    for k, v in info.items():
+        is_dvi = not (v["youtube_id"] in v.get("version", []))
+        keep = False
+
+        for field in tag_fields:
+            if field not in v or not v[field]:
+                continue
+
+            tags = v[field]
+            # Check if it matches selected_tags, if provided
+            if selected_tags is None:
+                keep = True
+            else:
+                # Must contain at least one of the selected tags
+                if any(tag in selected_tags for tag in tags):
+                    keep = True
+
+            if keep:
+                tagged_items.add(k)
+                break  # No need to check more fields
+
+        # If delete_dvi is False, always keep DVI items even if untagged
+        if not delete_dvi and is_dvi:
+            tagged_items.add(k)
+
+    # 2. Filter splits
+    new_splits = {}
+    for split_name, split_dict in splits.items():
+        new_splits[split_name] = {}
+        for clique, item_keys in split_dict.items():
+            filtered_keys = [k for k in item_keys if k in tagged_items]
+            if len(filtered_keys) >= min_items_per_clique:
+                new_splits[split_name][clique] = filtered_keys
+
+    # 3. Build new info dict from remaining splits
+    items_in_splits = {k for split_dict in new_splits.values() for keys in split_dict.values() for k in keys}
+    new_info = {k: info[k] for k in items_in_splits}
+
+    return {"info": new_info, "split": new_splits}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Subset dataset script")
@@ -170,7 +236,7 @@ def main():
     print("Loading dataset...")
     dataset = load_dataset(args.dataset)
 
-    print("Creating non-dvi-only subset...")
+    print("Creating yvi subset...")
     subset_non_dvi = drop_dvi_items(dataset)
     torch.save(subset_non_dvi, os.path.join(args.out_dir, "yvi.pt"))
     
@@ -178,9 +244,34 @@ def main():
     subset_dedup_by_duration = dedup_by_duration(dataset, T=1.0)
     torch.save(subset_dedup_by_duration, os.path.join(args.out_dir, "diverse-dd.pt"))
     
-    print("Creating non-deduplicated-non-dvi-only subset...")
+    print("Creating deduplicated-yvi subset...")
     subset_dedup_by_duration_non_dvi = drop_dvi_items(subset_dedup_by_duration)
     torch.save(subset_dedup_by_duration_non_dvi, os.path.join(args.out_dir, "yvi-dd.pt"))
+    
+    print("Creating tagged-only subset...")
+    subset_tagged = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title"], delete_dvi=False)
+    torch.save(subset_tagged, os.path.join(args.out_dir, "diverse-tagged.pt"))
+    
+    print("Creating deduplicated tagged-only subset...")
+    subset_tagged_non_dvi = drop_dvi_items(subset_tagged)
+    torch.save(subset_tagged_non_dvi, os.path.join(args.out_dir, "yvi-tagged.pt"))
+    
+    print("Creating selected-tags-only subset...")
+    selected_tags = ["live", 
+                     "cover", 
+                     "acoustic", 
+                     "instrumental", 
+                     "karaoke", "backingtrack",
+                     "reaction", "react", "reacts", "firsttimehearing", "firsttimelistening",
+                     "tutorial", "lesson", "howtoplay", "howtosing"
+                     "solo"]
+    subset_tagged_selected = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title", "tags_yt_description"], 
+                                                   delete_dvi=False, selected_tags=selected_tags)
+    torch.save(subset_tagged_selected, os.path.join(args.out_dir, "diverse-tagged-selected.pt"))
+    
+    print("Creating deduplicated selected-tags-only subset...")
+    subset_tagged_selected_non_dvi = drop_dvi_items(subset_tagged_selected)
+    torch.save(subset_tagged_selected_non_dvi, os.path.join(args.out_dir, "yvi-tagged-selected.pt"))
 
     # print(f"Creating proportional downsample subset (fraction={args.fraction})...")
     # subset_downsample = proportional_downsample(dataset, fraction=args.fraction, min_items_per_class=2, seed=42)

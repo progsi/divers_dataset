@@ -358,6 +358,13 @@ def main() -> None:
     clique_metadata["stopwords"] = clique_metadata["artist"] + clique_metadata["title"]
     df = pd.merge(df, clique_metadata["stopwords"].reset_index(), on="clique", how="left")
 
+    # NOTE: remove entries where title == artist and not DVI
+    if {"title", "artist", "dvi"}.issubset(df.columns):
+        eq_artist_title = df["title"] == df["artist"]
+        mask_dvi = df.apply(lambda x: not x["youtube_id"] in x["version"], axis=1)
+        remove_mask = eq_artist_title & ~mask_dvi
+        df = df.loc[~remove_mask].copy()
+    
     df = match_tags(df, tags)
     df = df.drop(columns=["stopwords"])
     
@@ -373,7 +380,7 @@ def main() -> None:
     
     torch.save({
         "info": metadata_dicts,
-        "split": split
+        "split": get_split_dict(df)
     }, args.output)
     print(f"Enriched metadata saved to {args.output}.")
     print_df_summary(df, subset="overall")

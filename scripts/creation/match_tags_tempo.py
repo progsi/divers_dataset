@@ -239,6 +239,36 @@ def deduplicate_false_cliques(df):
 
     return df_cleaned
 
+import re
+
+def remove_negated_tags_and_cues(df, tag_col, cue_col, negation_tags):
+    # Create mapping from negation tag to regular tag (e.g. "no guitar" → "guitar")
+    negation_map = {neg: neg.split()[-1] for neg in negation_tags}
+    
+    def process_row(row):
+        tags = row[tag_col]
+        cues = row[cue_col]
+        
+        # Create list to collect the filtered tags and cues
+        filtered_tags = []
+        filtered_cues = []
+        
+        # Identify which negation tags are present in this row
+        negations_in_row = set(tags) & set(negation_tags)
+        regular_to_remove = {negation_map[neg] for neg in negations_in_row}
+        
+        # Loop over tags and cues together
+        for tag, cue in zip(tags, cues):
+            if tag in regular_to_remove:
+                continue  
+            filtered_tags.append(tag)
+            filtered_cues.append(cue)
+        
+        return pd.Series({tag_col: filtered_tags, cue_col: filtered_cues})
+    
+    df[[tag_col, cue_col]] = df.apply(process_row, axis=1)
+    return df
+
 def get_split_dict(df):
     """Get the splitdict from the DataFrame."""
     split_dict = {}
@@ -375,6 +405,12 @@ def main() -> None:
      # final cleanups
     df = deduplicate_youtube_versions(df)
     df = filter_non_singleton_cliques(df)
+    negation_tags = df.effective_tag.loc[
+        df.effective_tag.str.contains(r"\b(no|not)\b", regex=True)
+        ].to_list()
+    df = remove_negated_tags_and_cues(df, "tags_yt_title", "cues_yt_title", negation_tags=negation_tags)
+    df = remove_negated_tags_and_cues(df, "tags_yt_description", "cues_yt_description", negation_tags=negation_tags)
+    df = remove_negated_tags_and_cues(df, "tags_yt_tags", "cues_yt_tags", negation_tags=negation_tags)
     
     metadata_dicts = df.set_index("cid:vid").to_dict(orient="index")
     

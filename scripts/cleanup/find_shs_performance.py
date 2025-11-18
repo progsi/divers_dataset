@@ -1,176 +1,92 @@
-import os
-from typing import List
-import json
-import random
+# load JSON Lines (one JSON object per line)
+import argparse
 import requests
-from tqdm import tqdm
+from datetime import datetime, timedelta
+import json
+
+BASE_URL = "https://secondhandsongs.com/search/"
+
+# Rate limit counters
+request_count_minute = 0
+request_count_hour = 0
+request_count_day = 0
+last_request_time = datetime.now()
+last_hour_time = datetime.now()
+last_day_time = datetime.now()
+
+# Limits
+MAX_REQUESTS_PER_MINUTE = 100
+MAX_REQUESTS_PER_HOUR = 1000
+MAX_REQUESTS_PER_DAY = 24_000
 
 
-BASE_URL = "https://api.secondhandsongs.com/search/"
-
-headers = {
-    "Accept": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0 Safari/537.36"
-    # "X-API-Key": "ed0a8c61-4520-4317-9b95-7a260260b4c"  # Replace with your API key if needed
-}
-
-
-def read_json_lines(path: str) -> List[dict]:
-    with open(path, "r") as f:
-        data = [json.loads(line) for line in f]
-    return data
-
-def get_random_proxy_with_credentials(username_file: str =  "../proxy_user.txt", 
-                     pw_file: str = "../proxy_pw.txt", 
-                     servers_path: str = "../servers.txt",
-                     blocked_servers_path: str = "../blocked_servers.txt",
-                     port: int = 89) -> str:
-    # get username
-    with open(username_file, "r") as f:
-        user = f.read().strip()
-
-    # get password
-    with open(pw_file, "r") as f:
-        pw = f.read().strip()
-    
-    def clean_server_list(servers: list) -> list:
-        servers = [s.strip().replace("\n", "") for s in servers]
-        servers = [s for s in servers if s.endswith(".com")]
-        return servers
-    
-    # get server list
-    with open(servers_path, "r") as f:
-        servers = clean_server_list(f.readlines())
-    
-    # get blocked servers
-    with open(blocked_servers_path, "r") as f:
-        blocked_servers = clean_server_list(f.readlines())
-    
-    # get random server
-    servers = [s for s in servers if s not in blocked_servers]
-    server = random.choice(servers)
-    
-    print(f"Using proxy: {server}:{port}")
-    return f"https://{user}:{pw}@{server}:{port}"
-
-def get_random_proxy_from_file(file_path: str = "../proxies.txt") -> str:
-    """
-    Get a random proxy from a file.
-    """
-    with open(file_path, "r") as f:
-        proxies = f.readlines()
-    proxy = random.choice(proxies).strip()
-    return f"http://{proxy}"
-
-
-def get_random_proxy(mode: str = "credentials") -> str:
-    """
-    Get a random proxy from the QuickProxy service.
-    """
-    if mode == "credentials":
-        return get_random_proxy_with_credentials()
-    elif mode == "file":
-        return get_random_proxy_from_file()
-    else:
-        raise NotImplementedError("Mode not implemented. Use 'credentials' or 'file'.")
-    
 def get_search_url_performance(title: str, performer: str) -> str:
     title, performer = title.replace(" ", "%20"), performer.replace(" ", "%20")
     return BASE_URL + f"performance?op_title=contains&title={title}&op_performer=contains&performer={performer}&sort=simplifiedTitle&reverse=0&format=json"
 
-def search_performance(title: str, performer: str, proxies: dict) -> dict:
+def search_performance(title: str, performer: str, key: str) -> dict:
     url = get_search_url_performance(title, performer)
-    response = requests.get(url, headers=headers, proxies=proxies)
-    return response.status_code, json.loads(response.text)
+    if key is not None:
+        response = requests.get(url, headers={"X-API-Key": key})
+    else:
+        response = requests.get(url)
+    return json.loads(response.text)
 
-def get_performance(perf_id: int, proxies: dict) -> dict:
-    url = f"https://api.secondhandsongs.com/performance/{perf_id}"
-    response = requests.get(url, headers=headers, proxies=proxies)
-    return response.status_code, json.loads(response.text)
-
-def yield_clique_metadata_unique(data: list):
+def yield_version_metadata_unique(data: list):
     """
-    Loop through the data and yield unique tracks per clique.
-    A unique track is defined as a combination where either the writers or the cleaned track title do not match any previous track in the same clique.
+    Loop through the data and yield unique tracks per version.
+    A unique track is defined as a combination of release_artist_names
+    and cleaned track title NOT seen earlier in the same version.
     """
     for clique in data:
-        seen = set()
         for version in clique["versions"]:
+            seen = set()  # uniqueness per version
+            
             for track in version["tracks"]:
-                writers_tuple = tuple(sorted(track["track_writer_names"]))
+                artists_tuple = tuple(sorted(track["release_artist_names"]))
                 cleaned_title = track["track_title_cleaned"]
-                key = (writers_tuple, cleaned_title)
+                key = (artists_tuple, cleaned_title)
+
                 if key not in seen:
                     seen.add(key)
-                    clique_metadata = {}
-                    clique_metadata["clique_id"] = clique["clique_id"]
-                    clique_metadata["version_id"] = version["version_id"]
-                    clique_metadata["track_title_cleaned"] = cleaned_title
-                    clique_metadata["track_writer_names"] = track["track_writer_names"]
-                    clique_metadata["track_writer_ids"] = track["track_writer_names"]
-                    clique_metadata["release_artist_names"] = track["release_artist_names"]
-                    clique_metadata["released"] = track["released"]
-                    yield clique_metadata
-                    
-                    
-def parse_args():
-    import argparse
-    parser = argparse.ArgumentParser(description="Find SHS performance data.")
-    parser.add_argument("dataset", type=str, help="Path to the input dataset file.")
-    parser.add_argument("output", type=str, help="Output filepath.")
-    return parser.parse_args()
+                    yield {
+                        "clique_id": clique["clique_id"],
+                        "version_id": version["version_id"],
+                        "track_title": track["track_title"],
+                        "track_title_cleaned": cleaned_title,
+                        "track_writer_names": track["track_writer_names"],
+                        "track_writer_ids": track["track_writer_ids"],
+                        "release_artist_names": track["release_artist_names"],
+                        "released": track["released"],
+                        "youtube_video": track["youtube_video"],
+                    }    
 
 def main():
-    
-    args = parse_args()
-    
-    # Read the input dataset
-    data = read_json_lines(args.dataset)
-    
-    unique_cliques = list(yield_clique_metadata_unique(data))
-        
-    with open(args.output, 'w') as f:
-        for i, clique in enumerate(unique_cliques):
-            clique_id = clique["clique_id"]
-            version_id = clique["version_id"]
-            title = clique["track_title_cleaned"].lower()
-            performer = clique["release_artist_names"][0].lower() 
-            
-            collector = {
-                "clique_id": clique_id,
-                "version_id": version_id,
-                "title": title,
-                "performer": performer
-            }
-            
-            # get search results
-            status = None
-            while not (status == 200):
-                print(f"Idx: {i}; {round(i/len(unique_cliques)*100,2)}% Searching SHS {title} by {performer}...", end='\n', flush=True)
-                status, search_results = search_performance(title, performer, get_random_proxy())
-            collector["shs_search"] = search_results
-            
-            # get performance identifier of first results
-            if search_results.get("resultPage") and len(search_results.get("resultPage")) > 0:
-                perf_id = search_results["resultPage"][0]["uri"].split("/")[-1]
-                collector["perf_id"] = perf_id
-                
-                # get performance data
-                status = None
-                while not (status == 200):
-                    print(f"Getting SHS performance for {title} by {performer}...", end='\n', flush=True)
-                    status, performance_data = get_performance(perf_id, get_random_proxy())
-                collector["shs_performance"] = performance_data
-                
-                # Append the performance data to the list
-                f.write(json.dumps(collector) + "\n")
-                
-            else:
-                f.write(json.dumps(collector) + "\n")
-                continue   
-            
+    parser = argparse.ArgumentParser(
+        description="Find SHS performance data from JSON Lines file."
+    )
+    parser.add_argument(
+        "input_file", type=str, help="Path to the input JSON Lines file."
+    )
+    parser.add_argument(
+        "output_file", type=str, help="Path to the output JSON Lines file."
+    )
+    parser.add_argument(
+        "--shs_key_file", "-k", type=str, default="../shs_key.txt"
+    )
+    args = parser.parse_args()
 
+    with open(args.input_file, "r", encoding="utf-8") as f:
+        data = [json.loads(line) for line in f]
+
+    with open(args.shs_key_file, "r", encoding="utf-8") as kf:
+        shs_key = kf.read().strip()
+
+    with open(args.input_file, "r", encoding="utf-8") as in_f:
+        with open(args.output_file, "w", encoding="utf-8") as out_f:
+            for entry in yield_version_metadata_unique(data):
+                print(entry)    
+                # TODO: Implement rate limiting and API calls here
+                
 if __name__ == "__main__":
     main()
-    
-    

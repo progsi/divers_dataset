@@ -23,7 +23,12 @@ def search_performance(title: str, performer: str, key: str) -> dict:
         headers["X-API-Key"] = key
 
     response = requests.get(url, headers=headers)
-    return json.loads(response.text)
+    
+    return {
+        "url": url,
+        "status_code": response.status_code,
+        "data": json.loads(response.text)
+    } 
 
 def yield_version_metadata_unique(data: list):
     """
@@ -132,7 +137,7 @@ def main():
                     
                 response = search_performance(
                     entry["track_title_cleaned"],
-                    entry["release_artist_names"][0] if entry["release_artist_names"] else "",
+                    entry["release_artist_names"][0].lower() if entry["release_artist_names"] else "",
                     shs_key
                 )
                 entry["shs_performance_search"] = response

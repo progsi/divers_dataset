@@ -21,7 +21,7 @@ def load_dataset(path):
         with open(path, "r") as f:
             meta = json.load(f)
     elif path.endswith(".pt"):
-        meta = torch.load(path)
+        meta = torch.load(path, weights_only=False)
     else:
         raise ValueError("Unsupported file type")
 
@@ -139,12 +139,12 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     df, meta = load_dataset(args.input)
-    df_test = df.query("split == 'test'")
+    df_split = df.loc[df.split == args.split]
     os.makedirs(args.output, exist_ok=True)
     
     for frac in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
         subset = stratified_sample(
-            df_test,
+            df_split,
             dvi_ratio=frac,      # Desired proportion of True in 'dvi'
             m_per_class=args.m,      # Number of items per class
             n_classes=args.n,        # How many classes to sample

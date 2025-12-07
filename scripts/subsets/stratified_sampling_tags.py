@@ -43,116 +43,223 @@ def load_dataset(path):
 
     return df, meta
 
+# def stratified_sample(
+#     df,
+#     tags,
+#     m_dvi,
+#     m_tag,
+#     n_pairs,
+#     allow_clique_reuse=True,
+#     replace=False,
+#     random_state=None,
+# ):
+#     """
+#     Sample n_pairs pairs, where each pair consists of:
+#       - m_dvi items with dvi=True
+#       - m_tag items containing ALL required tags in `tags`
+
+#     Sampling is performed within cliques, but:
+#       - allow_clique_reuse=True allows multiple pairs from the same clique
+#       - allow_clique_reuse=False allows a clique to be used only once
+
+#     Parameters
+#     ----------
+#     df : pd.DataFrame
+#         Must contain: ['clique', 'youtube_id', 'dvi', 'tags_yt_title']
+#     tags : list[str]
+#         Items for m_tag sampling must contain ALL of these tags.
+#     m_dvi : int
+#         Items with dvi=True per pair.
+#     m_tag : int
+#         Items containing all required tags per pair.
+#     n_pairs : int
+#         Number of pairs to sample.
+#     allow_clique_reuse : bool, default True
+#         Whether a clique can be used multiple times.
+#     replace : bool, default False
+#         Sampling within a clique can reuse items.
+#     random_state : int or None
+#         For reproducibility.
+
+#     Returns
+#     -------
+#     pd.DataFrame
+#         All sampled items, with pair_id and clique_used columns.
+#     """
+
+#     rng = np.random.default_rng(random_state)
+#     required_tags = set(tags)
+
+#     # --- 1. Identify feasible cliques ---
+#     feasible = {}
+
+#     for clique, group in df.groupby("clique"):
+#         dvi_items = group[group["dvi"] == True]
+
+#         # ALL required tags must be present
+#         tag_items = group[
+#             group["tags_yt_title"].apply(lambda lst: required_tags.issubset(lst))
+#         ]
+
+#         if len(dvi_items) >= m_dvi and len(tag_items) >= m_tag:
+#             feasible[clique] = {
+#                 "dvi": dvi_items,
+#                 "tag": tag_items
+#             }
+
+#     if not feasible:
+#         raise ValueError("No clique can satisfy m_dvi and m_tag requirements (ALL tags).")
+
+#     if not allow_clique_reuse and len(feasible) < n_pairs:
+#         raise ValueError(
+#             f"Only {len(feasible)} feasible cliques available; n_pairs={n_pairs} requested."
+#         )
+
+#     # --- 2. Determine clique sequence ---
+#     cliques_sequence = (
+#         rng.choice(list(feasible.keys()), size=n_pairs, replace=True)
+#         if allow_clique_reuse
+#         else rng.choice(list(feasible.keys()), size=n_pairs, replace=False)
+#     )
+
+#     # --- 3. Build each pair ---
+#     results = []
+
+#     for pair_id, clique in enumerate(cliques_sequence, start=1):
+#         dvi_group = feasible[clique]["dvi"]
+#         tag_group = feasible[clique]["tag"]
+
+#         dvi_sample = dvi_group.sample(n=m_dvi, replace=replace, random_state=random_state)
+#         tag_sample = tag_group.sample(n=m_tag, replace=replace, random_state=random_state)
+
+#         combined = pd.concat([dvi_sample, tag_sample]).drop_duplicates("youtube_id")
+
+#         # If duplicates lowered count below requirement (and no replacement allowed), fail
+#         if len(combined) < m_dvi + m_tag and not replace:
+#             raise ValueError(
+#                 f"Pair from clique '{clique}' lost unique rows due to overlap; "
+#                 f"cannot meet requirements without replacement."
+#             )
+
+#         combined = combined.copy()
+#         combined["pair_id"] = pair_id
+#         combined["clique_used"] = clique
+
+#         results.append(combined)
+
+#     return pd.concat(results, ignore_index=True)
+
 def stratified_sample(
     df,
     tags,
     m_dvi,
     m_tag,
-    c,
+    n_pairs,
+    allow_clique_reuse=True,
     replace=False,
-    random_state=None
+    random_state=None,
 ):
     """
-    Perform stratified sampling by class ('clique'):
-      - m_dvi requires items per class with dvi=True
-      - m_tag requires total items per class containing ALL of the tags in `tags`
-      - c total classes sampled (randomly)
-      - Classes that cannot satisfy requirements are ignored
-      - If fewer than c valid classes exist, raise an error
-      - Sampling without replacement unless replace=True
+    Sample n_pairs pairs, each with:
+      - m_dvi items with dvi=True
+      - m_tag items containing ALL required tags
+    Guarantees no overlap within a pair and retries other cliques if needed.
 
     Parameters
     ----------
     df : pd.DataFrame
         Must contain: ['clique', 'youtube_id', 'dvi', 'tags_yt_title']
     tags : list[str]
-        Tags; we require m_tag items that contain *any* tag in this list
+        Items for m_tag sampling must contain ALL of these tags.
     m_dvi : int
-        Required # of dvi=True items per class
+        Number of dvi=True items per pair.
     m_tag : int
-        Required # of tag-containing items per class (across all tags)
-    c : int
-        Number of classes to sample
+        Number of tag-matching items per pair.
+    n_pairs : int
+        Number of pairs to sample.
+    allow_clique_reuse : bool, default True
+        Whether a clique can provide multiple pairs.
     replace : bool, default False
-        Whether to sample with replacement
+        Whether to sample with replacement within a clique.
     random_state : int or None
-        For reproducibility
+        For reproducibility.
 
     Returns
     -------
     pd.DataFrame
-        Stratified sample across selected classes.
+        Combined sampled items with 'pair_id' and 'clique_used' columns.
     """
 
     rng = np.random.default_rng(random_state)
     required_tags = set(tags)
 
-    feasible_classes = []
-
-    # 1. Check feasibility per class
+    # --- 1. Precompute feasible cliques ---
+    feasible = {}
     for clique, group in df.groupby("clique"):
-        # Items with dvi=True
         dvi_items = group[group["dvi"] == True]
+        tag_items = group[group["tags_yt_title"].apply(lambda lst: required_tags.issubset(lst))]
 
-        tag_items = group[
-            group["tags_yt_title"].apply(
-                lambda lst: required_tags.issubset(lst)
-            )
-        ]
-        # # Items containing ANY tag
-        # tag_items = group[
-        #     group["tags_yt_title"].apply(
-        #         lambda lst: len(required_tags.intersection(lst)) > 0
-        #     )
-        # ]
+        if len(dvi_items) >= m_dvi and len(tag_items) >= m_tag:
+            feasible[clique] = {
+                "dvi": dvi_items,
+                "tag": tag_items
+            }
 
-        # Check availability
-        if (len(dvi_items) >= m_dvi) and (len(tag_items) >= m_tag):
-            feasible_classes.append(clique)
+    if not feasible:
+        raise ValueError("No clique can satisfy m_dvi and m_tag requirements (ALL tags).")
 
-    # 2. Verify enough feasible classes
-    if len(feasible_classes) < c:
-        print(
-            f"Only {len(feasible_classes)} feasible classes available, but c={c} required."
-        )
-        c = len(feasible_classes)
+    if not allow_clique_reuse and len(feasible) < n_pairs:
+        raise ValueError(f"Not enough cliques to sample {n_pairs} pairs without reuse.")
 
-    # 3. Randomly choose c classes
-    selected_classes = rng.choice(feasible_classes, size=c, replace=False)
+    # --- 2. Prepare clique pool ---
+    available_cliques = list(feasible.keys())
+    results = []
+    pair_id = 1
 
-    # 4. Sample within each selected class
-    final_results = []
-
-    for clique in selected_classes:
-        group = df[df["clique"] == clique]
-
-        # sample dvi=True items
-        dvi_items = group[group["dvi"] == True].sample(
-            n=m_dvi, replace=replace, random_state=random_state
-        )
-
-        # sample tag items
-        tag_items = group[
-            group["tags_yt_title"].apply(
-                lambda lst: len(required_tags.intersection(lst)) > 0
-            )
-        ].sample(
-            n=m_tag, replace=replace, random_state=random_state
-        )
-
-        # Combine samples & remove accidental duplicates
-        combined = pd.concat([dvi_items, tag_items]).drop_duplicates("youtube_id")
-        
-        # If duplicates caused the total to drop below required amounts, fail
-        if len(combined) < (m_dvi + m_tag) and not replace:
+    while pair_id <= n_pairs:
+        if not available_cliques:
             raise ValueError(
-                f"Class '{clique}' lost unique rows due to overlap; cannot meet sampling "
-                f"requirements without replacement."
+                f"Cannot build {n_pairs} pairs. Only {pair_id - 1} pairs could be created."
             )
 
-        final_results.append(combined)
+        # Select a clique randomly
+        clique = rng.choice(available_cliques)
 
-    return pd.concat(final_results, ignore_index=True)
+        dvi_group = feasible[clique]["dvi"]
+        tag_group = feasible[clique]["tag"]
+
+        try:
+            # Sample dvi items
+            dvi_sample = dvi_group.sample(n=m_dvi, replace=replace, random_state=random_state)
+
+            # Sample tag items excluding dvi_sample to avoid overlap
+            tag_pool = tag_group.drop(dvi_sample.index, errors='ignore')
+            if len(tag_pool) < m_tag and not replace:
+                raise ValueError("Not enough unique tag items after excluding dvi_sample.")
+
+            tag_sample = tag_pool.sample(n=m_tag, replace=replace, random_state=random_state)
+
+            # Combine and assign pair info
+            combined = pd.concat([dvi_sample, tag_sample])
+            combined = combined.drop_duplicates("youtube_id").copy()
+            combined["pair_id"] = pair_id
+            combined["clique_used"] = clique
+
+            results.append(combined)
+            pair_id += 1
+
+            # Remove clique from pool if reuse is not allowed
+            if not allow_clique_reuse:
+                available_cliques.remove(clique)
+
+        except ValueError:
+            # Failed for this clique, remove it if reuse is disallowed
+            if not allow_clique_reuse:
+                available_cliques.remove(clique)
+            # Otherwise, just retry another clique
+            continue
+
+    return pd.concat(results, ignore_index=True)
 
 def print_df_summary(df, subset="overall"):
     if subset != "overall":
@@ -204,9 +311,11 @@ def parse_args():
                         default="data/divers1m_json/rich/divers1m.json")
     parser.add_argument("--output", type=str, help="Directory to save sampled subsets.", 
                         default="data/divers1m_json/stratified_samples")
-    parser.add_argument("--m_dvi", type=int, default=1, help="Number of items per class.")
-    parser.add_argument("--m_tag", type=int, default=1, help="Number of items per class.")
-    parser.add_argument("--c", type=int, default=500, help="Number of classes to sample.")
+    parser.add_argument("--m-dvi", type=int, default=1, help="Number of items per class.")
+    parser.add_argument("--m-tag", type=int, default=1, help="Number of items per class.")
+    parser.add_argument("--n-pairs", type=int, default=500, help="Number of pairs to sample.")
+    parser.add_argument("--no-clique-reuse", action="store_false",
+                        dest="allow_clique_reuse", help="Do not allow using the same clique.")
     parser.add_argument("--split", type=str, default="test", help="Dataset subset split to sample from.")
     return parser.parse_args()
 
@@ -215,7 +324,7 @@ if __name__ == "__main__":
     df, meta = load_dataset(args.input)
     df_split = df.loc[df.split == args.split]
     os.makedirs(args.output, exist_ok=True)
-    
+       
     tag_subsets = [
         ["acoustic"],
         ["instrumental"],              # instrumental|karaoke
@@ -246,12 +355,26 @@ if __name__ == "__main__":
                 tags=tag_subset,
                 m_dvi=args.m_dvi,          # Number of dvi=True items per class
                 m_tag=args.m_tag,          # Number of tag-containing items per class
-                c=args.c,                  # How many classes to sample
+                n_pairs=args.n_pairs,                  # How many classes to sample
+                allow_clique_reuse=args.allow_clique_reuse,
                 random_state=42     # For reproducibility
             )
             tag_subset_str = "_".join(tag_subset)
-            print(f"\n=== Summary for dvi_fraction={tag_subset_str} ===")
+            print(f"\n=== Summary for tag subset={tag_subset_str} ===")
             print_df_summary(subset, "overall")
             save_df_as_torch(subset,os.path.join(args.output, f"sample_{tag_subset_str}.pt"), args.split)
         except ValueError as e:
             print(f"Skipping tag subset {tag_subset}, can not satisfy sampling requirements: {e}")
+            
+    ref_set = stratified_sample(
+                df_split,
+                tags=[],
+                m_dvi=args.m_dvi + args.m_tag,          # Number of dvi=True items per class
+                m_tag=0,          # Number of tag-containing items per class
+                n_pairs=args.n_pairs,                  # How many classes to sample
+                allow_clique_reuse=args.allow_clique_reuse,
+                random_state=42     # For reproducibility
+    )
+    print(f"\n=== Summary for reference set ===")
+    print_df_summary(ref_set, "overall")
+    save_df_as_torch(ref_set,os.path.join(args.output, f"sample_reference.pt"), args.split)

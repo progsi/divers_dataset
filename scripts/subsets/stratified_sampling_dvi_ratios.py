@@ -153,5 +153,5 @@ if __name__ == "__main__":
         )
         print(f"\n=== Summary for dvi_fraction={frac} ===")
         print_df_summary(subset, "overall")
-        save_df_as_torch(subset,os.path.join(args.output, f"sample{frac}.pt"), args.split)
+        save_df_as_torch(subset,os.path.join(args.output, f"sample_{frac}.pt"), args.split)
 

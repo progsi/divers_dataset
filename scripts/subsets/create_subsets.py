@@ -242,36 +242,36 @@ def main():
     
     print("Creating deduplicated-by-duration subset...")
     subset_dedup_by_duration = dedup_by_duration(dataset, T=1.0)
-    torch.save(subset_dedup_by_duration, os.path.join(args.out_dir, "diverse-dd.pt"))
+    torch.save(subset_dedup_by_duration, os.path.join(args.out_dir, "divers_dd.pt"))
     
     print("Creating deduplicated-yvi subset...")
     subset_dedup_by_duration_non_dvi = drop_dvi_items(subset_dedup_by_duration)
-    torch.save(subset_dedup_by_duration_non_dvi, os.path.join(args.out_dir, "yvi-dd.pt"))
+    torch.save(subset_dedup_by_duration_non_dvi, os.path.join(args.out_dir, "yvi_dd.pt"))
     
     print("Creating tagged-only subset...")
     subset_tagged = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title"], delete_dvi=False)
-    torch.save(subset_tagged, os.path.join(args.out_dir, "diverse-tagged.pt"))
+    torch.save(subset_tagged, os.path.join(args.out_dir, "divers_small.pt"))
     
     print("Creating deduplicated tagged-only subset...")
     subset_tagged_non_dvi = drop_dvi_items(subset_tagged)
-    torch.save(subset_tagged_non_dvi, os.path.join(args.out_dir, "yvi-tagged.pt"))
+    torch.save(subset_tagged_non_dvi, os.path.join(args.out_dir, "yvi_small.pt"))
     
-    print("Creating selected-tags-only subset...")
-    selected_tags = ["live", 
-                     "cover", 
-                     "acoustic", 
-                     "instrumental", 
-                     "karaoke", "backingtrack",
-                     "reaction", "react", "reacts", "firsttimehearing", "firsttimelistening",
-                     "tutorial", "lesson", "howtoplay", "howtosing"
-                     "solo"]
-    subset_tagged_selected = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title", "tags_yt_description"], 
-                                                   delete_dvi=False, selected_tags=selected_tags)
-    torch.save(subset_tagged_selected, os.path.join(args.out_dir, "diverse-tagged-selected.pt"))
+    #print("Creating selected-tags-only subset...")
+    #selected_tags = ["live", 
+    #                 "cover", 
+    #                 "acoustic", 
+    #                 "instrumental", 
+    #                 "karaoke", "backingtrack",
+    #                 "reaction", "react", "reacts", "firsttimehearing", "firsttimelistening",
+    #                 "tutorial", "lesson", "howtoplay", "howtosing"
+    #                 "solo"]
+    #subset_tagged_selected = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title", "tags_yt_description"], 
+    #                                               delete_dvi=False, selected_tags=selected_tags)
+    #torch.save(subset_tagged_selected, os.path.join(args.out_dir, "divers_tag_selected.pt"))
     
-    print("Creating deduplicated selected-tags-only subset...")
-    subset_tagged_selected_non_dvi = drop_dvi_items(subset_tagged_selected)
-    torch.save(subset_tagged_selected_non_dvi, os.path.join(args.out_dir, "yvi-tagged-selected.pt"))
+    #print("Creating deduplicated selected-tags-only subset...")
+    #subset_tagged_selected_non_dvi = drop_dvi_items(subset_tagged_selected)
+    #torch.save(subset_tagged_selected_non_dvi, os.path.join(args.out_dir, "yvi_tag_selected.pt"))
 
     # print(f"Creating proportional downsample subset (fraction={args.fraction})...")
     # subset_downsample = proportional_downsample(dataset, fraction=args.fraction, min_items_per_class=2, seed=42)

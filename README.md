@@ -1,5 +1,7 @@
 # Discogs-VI-2
 
+**Note: Data is contained in the supplementary material of the paper submission!**
+
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *DiVers-Large*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.
 - *DiVers-Small*: A subset of *DiVers-Large*, restricted to segments where music tags appear in the YouTube video title.

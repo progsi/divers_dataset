@@ -1,13 +1,13 @@
 # Discogs-VI-2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16993368.svg)](https://doi.org/10.5281/zenodo.16993368)
+**Note: Data is contained in the supplementary material of the paper submission!**
 
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *DiVers-Large*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.
 - *DiVers-Small*: A subset of *DiVers-Large*, restricted to segments where music tags appear in the YouTube video title.
 
 ## Explorer
-Discover our dataset in our [explorer app](https://divers1m.streamlit.app/).
+Discover our dataset in our [explorer app](https://divers.streamlit.app/).
 ![Explorer GUI](figures/explorer.png)
 
 ## Conda Environment
@@ -17,28 +17,10 @@ Discover our dataset in our [explorer app](https://divers1m.streamlit.app/).
 ### Requirements
 - the original *DVI* dataset, especially the file `Discogs-VI-YT-20240701.jsonl`
 - capable hardware to run *Qwen3-30B* locally
-### Cleanup *Discogs-VI-YT*
-We do the following to cleanup. This should result in a cleaner version of *Discogs-VI-YT* with new clique assignments. It can be considered a second version of the dataset but with less versions.
-#### Reduce false positives
-##### Normalizing the writers with an LLM
-Here is an example with the LLM *Qwen3-30B*. The mapping from the CLI parameter to the model is hard-coded in the script.
-```
-python scripts/clean_discogs/llm_normalize_writers.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/norm_writers.jsonl --llm qwen
-```
-##### Finding versions of the same clique with different normalized writers
-This results in new cliques.
-```
-python scripts/clean_discogs/get_new_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/norm_writers_qwen.jsonl data/aux/new_clique_map.json
-```
-##### Create new dataset file
-Remapping of cliques.
-```
-python scripts/clean_discogs/reassign_clique_ids.py data/discogs/Discogs-VI-YT-20240701.jsonl data/aux/new_clique_map.json data/dataset/dvi_cleaned.jsonl
-```
 ### Extract titles from Discogs-VI-YT 
 To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
-python scripts/creation/get_unique_titles.py data/dataset/dvi_cleaned.jsonl data/aux/one_title_per_clique.json
+python scripts/creation/get_unique_titles.py data/dataset/dvi.jsonl data/aux/one_title_per_clique.json
 ```
 ### Search on YouTube
 We now search for up to 500 results per clique, using the text query (song title).
@@ -92,14 +74,6 @@ Afterwards, we create the splits:
 ```
 python scripts/creation/make_splits2.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content
 ```
-### Manual Curation of Concepts
-For these steps, we do not make use of any Python scripts but rather manual annotation and the [GUI version of *Qwen3-30B*](https://chat.qwen.ai/).
-This is described in the paper, but essentially we:
-- rank the 1,000 most frequently occuring $n$-grams for $n \in \{1,2,3\}$
-- label a concept manually (except for artist names)
-- re-iterate through our curated list (e.g., re-group concetps)
-This way, we come up with overall *concepts* (e.g. *acoustic*, *instrumental*), instruments and genres/styles. Next, we translate these using *Qwen3* with [this prompt](create_divers/concepts_prompt.md) and write the corresponding files YAML into `data/concepts/.
-
 ### Finalize
 Given a torch file like described in [our fork of CLEWS](https://github.com/progsi/clews/tree/main) and given the YouTube crawl and our Discogs metadata file, we can run:
 
@@ -112,22 +86,6 @@ Afterwards:
 ```
 python scripts/creation/match_tags_tempo.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt
 ```
-
-#### Make Sub-Datasets
-The dataset is very large and depending on the use case a respective subset might be enough. We can estimate the content from the YouTube video metadata. Potential use cases include:
-- Version identification 
-    - subset focussing on difficult versions
-- Music structure analysis 
-    - subset with versions only containing sub-segments 
-- Fingerprinting
-    - reaction videos, lyric videos?
-- Other identifications
-    - artist
-    - genre
-    - country of origin
-    - year
-    - type of video (e.g. studio recording, amateur, ...)
-- TODO: find out which sub-datasets we have
 
 ### Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

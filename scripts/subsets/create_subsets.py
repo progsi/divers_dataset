@@ -4,9 +4,15 @@ import os
 import json
 import torch
 import random
-import numpy as np
 from copy import deepcopy
-from tqdm import tqdm
+
+
+# ----------------------------
+# Utilities
+# ----------------------------
+
+def make_item_id(clique, version):
+    return f"{clique}:{version}"
 
 
 def load_dataset(path):
@@ -16,274 +22,163 @@ def load_dataset(path):
             data = json.load(f)
     elif path.endswith(".pt") or path.endswith(".pth"):
         data = torch.load(path, weights_only=False)
-        # convert to dict if it's a tensor dataset
         if isinstance(data, torch.Tensor):
             raise ValueError("Torch Tensor dataset not supported directly")
-        data = {k: v for k, v in data.items()}
     else:
         raise ValueError("Unsupported dataset format")
     return data
 
+
+# ----------------------------
+# Core filters
+# ----------------------------
+
 def drop_dvi_items(dataset, min_items_per_clique=2):
     """
-    Remove all items marked as 'dvi' and drop cliques with fewer than min_items_per_clique items.
-
-    Args:
-        dataset: dict with 'info' and 'split'
-        min_items_per_clique: minimum items per clique to keep
-
-    Returns:
-        new_dataset dict with same format as original
+    Remove all DVI items and drop small cliques
     """
     info = deepcopy(dataset["info"])
-    splits = dataset.get("split", {})
+    splits = dataset["split"]
 
-    # 1. Build set of non-dvi items
-    non_dvi_items = {k for k, v in info.items() if v["youtube_id"] in v["version"]}
+    non_dvi_items = {
+        item_id
+        for item_id, v in info.items()
+        if v["youtube_id"] in v["version"]
+    }
 
-    # 2. Filter splits
     new_splits = {}
-    for split_name, split_dict in splits.items():
-        new_splits[split_name] = {}
-        for clique, item_keys in split_dict.items():
-            # Keep only non-DVI items
-            filtered_keys = [k for k in item_keys if k in non_dvi_items]
-            if len(filtered_keys) >= min_items_per_clique:
-                new_splits[split_name][clique] = filtered_keys
+    for split, split_dict in splits.items():
+        new_splits[split] = {}
+        for clique, versions in split_dict.items():
+            kept_versions = [
+                v for v in versions
+                if make_item_id(clique, v) in non_dvi_items
+            ]
+            if len(kept_versions) >= min_items_per_clique:
+                new_splits[split][clique] = kept_versions
 
-    # 3. Build new info dict from remaining splits
-    items_in_splits = set()
-    for split_dict in new_splits.values():
-        for keys in split_dict.values():
-            items_in_splits.update(keys)
+    kept_item_ids = {
+        make_item_id(clique, v)
+        for split_dict in new_splits.values()
+        for clique, versions in split_dict.items()
+        for v in versions
+    }
 
-    new_info = {k: info[k] for k in items_in_splits}
-
+    new_info = {k: info[k] for k in kept_item_ids}
     return {"info": new_info, "split": new_splits}
-
-def dedup_by_duration(dataset, T=1.0, min_items_per_clique=2, delete_dvi=False):
-    """
-    Remove per-clique duplicate durations within tolerance T (seconds),
-    ensure minimum clique size, and optionally prevent deletion of DVI items.
-
-    Args:
-        dataset: dict with 'info' and 'split'
-        T: float, duration difference tolerance to consider duplicates
-        min_items_per_clique: minimum items per clique to keep
-        delete_dvi: if False, DVI items are never removed; if True, they can be removed like others
-
-    Returns:
-        new_dataset dict with same format as original
-    """
-    info = deepcopy(dataset["info"])
-    splits = dataset.get("split", {})
-
-    new_info = {}
-    new_splits = {}
-
-    for split_name, split_dict in splits.items():
-        new_splits[split_name] = {}
-        for clique, item_keys in split_dict.items():
-            # Gather items and durations
-            items = [(k, info[k]["length"], not info[k]["youtube_id"] in info[k]["version"]) for k in item_keys if k in info]
-            # Sort by duration
-            items.sort(key=lambda x: x[1])
-            kept = []
-
-            i = 0
-            while i < len(items):
-                # Start new cluster
-                cluster = [items[i]]
-                j = i + 1
-                while j < len(items) and abs(items[j][1] - items[i][1]) <= T:
-                    cluster.append(items[j])
-                    j += 1
-
-                # Pick one from cluster
-                dvi_items = [k for k, _, d in cluster if d]
-
-                if dvi_items:
-                    # Always prioritize DVI
-                    kept.append(dvi_items[0])
-                else:
-                    # No DVI in cluster: pick first non-dvi
-                    kept.append(cluster[0][0])
-
-                i = j
-
-            # If delete_dvi is False, add all remaining DVI items from clique
-            if not delete_dvi:
-                for k, _, d in items:
-                    if d and k not in kept:
-                        kept.append(k)
-
-            # Enforce minimum clique size
-            if len(kept) >= min_items_per_clique:
-                new_splits[split_name][clique] = kept
-                for k in kept:
-                    new_info[k] = info[k]
-            # else drop clique entirely
-
-    return {"info": new_info, "split": new_splits}
-
 
 def proportional_downsample(dataset, fraction=0.5, min_items_per_class=2, seed=None):
     """
-    Downsample items per clique proportionally
-    Ensures min_items_per_class is kept per clique
+    Proportional downsampling per clique
     """
     rng = random.Random(seed)
-    new_dataset = {"info": {}, "split": {}}
-
     info = deepcopy(dataset["info"])
-    splits = dataset.get("split", {})
+    splits = dataset["split"]
 
-    for split_name, split_dict in splits.items():
-        new_dataset["split"][split_name] = {}
-        for clique, item_keys in split_dict.items():
-            n = len(item_keys)
-            n_keep = max(min_items_per_class, int(round(n * fraction)))
-            n_keep = min(n_keep, n)  # cannot exceed available
-            sampled_keys = rng.sample(item_keys, n_keep)
-            new_dataset["split"][split_name][clique] = sampled_keys
-
-    # Recompute info to include only items still in splits
-    items_in_splits = set()
-    for split_dict in new_dataset["split"].values():
-        for keys in split_dict.values():
-            items_in_splits.update(keys)
-
-    new_dataset["info"] = {k: info[k] for k in items_in_splits}
-
-    return new_dataset
-
-def drop_non_tagged_items(dataset, tag_fields=["tags_yt_title"], min_items_per_clique=2, 
-                          delete_dvi=False, selected_tags=None):
-    """
-    Keep only items that have at least one tag in specified tag fields.
-    If selected_tags is specified, items must contain at least one of those tags.
-    Drops cliques with fewer than min_items_per_clique items.
-
-    Args:
-        dataset: dict with 'info' and 'split'
-        tag_fields: list of fields to check for tags
-        min_items_per_clique: minimum items per clique to keep
-        delete_dvi: whether to remove DVI (Derived Video Instance) items
-        selected_tags: optional list or set of tags to filter by
-
-    Returns:
-        new_dataset dict with same format as original
-    """
-    info = deepcopy(dataset["info"])
-    splits = dataset.get("split", {})
-
-    # Normalize selected_tags to a set for faster lookup
-    if selected_tags is not None:
-        selected_tags = set(selected_tags)
-
-    # 1. Build set of tagged items (and optionally include DVI items)
-    tagged_items = set()
-    for k, v in info.items():
-        is_dvi = not (v["youtube_id"] in v.get("version", []))
-        keep = False
-
-        for field in tag_fields:
-            if field not in v or not v[field]:
-                continue
-
-            tags = v[field]
-            # Check if it matches selected_tags, if provided
-            if selected_tags is None:
-                keep = True
-            else:
-                # Must contain at least one of the selected tags
-                if any(tag in selected_tags for tag in tags):
-                    keep = True
-
-            if keep:
-                tagged_items.add(k)
-                break  # No need to check more fields
-
-        # If delete_dvi is False, always keep DVI items even if untagged
-        if not delete_dvi and is_dvi:
-            tagged_items.add(k)
-
-    # 2. Filter splits
     new_splits = {}
-    for split_name, split_dict in splits.items():
-        new_splits[split_name] = {}
-        for clique, item_keys in split_dict.items():
-            filtered_keys = [k for k in item_keys if k in tagged_items]
-            if len(filtered_keys) >= min_items_per_clique:
-                new_splits[split_name][clique] = filtered_keys
+    for split, split_dict in splits.items():
+        new_splits[split] = {}
+        for clique, versions in split_dict.items():
+            n = len(versions)
+            k = max(min_items_per_class, int(round(n * fraction)))
+            k = min(k, n)
+            new_splits[split][clique] = rng.sample(versions, k)
 
-    # 3. Build new info dict from remaining splits
-    items_in_splits = {k for split_dict in new_splits.values() for keys in split_dict.values() for k in keys}
-    new_info = {k: info[k] for k in items_in_splits}
+    kept_item_ids = {
+        make_item_id(clique, v)
+        for split_dict in new_splits.values()
+        for clique, versions in split_dict.items()
+        for v in versions
+    }
 
+    new_info = {k: info[k] for k in kept_item_ids}
     return {"info": new_info, "split": new_splits}
 
 
+def drop_non_tagged_items(
+    dataset,
+    tag_fields=("tags_yt_title",),
+    min_items_per_clique=2,
+    delete_dvi=False,
+    selected_tags=None,
+):
+    """
+    Keep items with tags (optionally selected_tags)
+    """
+    info = deepcopy(dataset["info"])
+    splits = dataset["split"]
+
+    if selected_tags is not None:
+        selected_tags = set(selected_tags)
+
+    tagged_items = set()
+    for item_id, v in info.items():
+        is_dvi = not (v["youtube_id"] in v["version"])
+
+        keep = False
+        for field in tag_fields:
+            tags = v.get(field, [])
+            if not tags:
+                continue
+            if selected_tags is None or any(t in selected_tags for t in tags):
+                keep = True
+                break
+
+        if keep or (is_dvi and not delete_dvi):
+            tagged_items.add(item_id)
+
+    new_splits = {}
+    for split, split_dict in splits.items():
+        new_splits[split] = {}
+        for clique, versions in split_dict.items():
+            kept_versions = [
+                v for v in versions
+                if make_item_id(clique, v) in tagged_items
+            ]
+            if len(kept_versions) >= min_items_per_clique:
+                new_splits[split][clique] = kept_versions
+
+    kept_item_ids = {
+        make_item_id(clique, v)
+        for split_dict in new_splits.values()
+        for clique, versions in split_dict.items()
+        for v in versions
+    }
+
+    new_info = {k: info[k] for k in kept_item_ids}
+    return {"info": new_info, "split": new_splits}
+
+
+# ----------------------------
+# Main
+# ----------------------------
+
 def main():
     parser = argparse.ArgumentParser(description="Subset dataset script")
-    parser.add_argument("--dataset", required=True, help="Path to JSON or Torch dataset")
-    parser.add_argument("--fraction", type=float, default=0.5, help="Fraction for proportional downsampling")
-    parser.add_argument("--out_dir", required=True, help="Output directory")
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--fraction", type=float, default=0.5)
+    parser.add_argument("--out_dir", required=True)
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    print("Loading dataset...")
     dataset = load_dataset(args.dataset)
+    print(f"Initial items: {len(dataset['info'])}")
 
-    print("Creating yvi subset...")
-    subset_non_dvi = drop_dvi_items(dataset)
-    torch.save(subset_non_dvi, os.path.join(args.out_dir, "yvi.pt"))
-    
-    print("Creating deduplicated-by-duration subset...")
-    subset_dedup_by_duration = dedup_by_duration(dataset, T=1.0)
-    torch.save(subset_dedup_by_duration, os.path.join(args.out_dir, "divers_dd.pt"))
-    
-    print("Creating deduplicated-yvi subset...")
-    subset_dedup_by_duration_non_dvi = drop_dvi_items(subset_dedup_by_duration)
-    torch.save(subset_dedup_by_duration_non_dvi, os.path.join(args.out_dir, "yvi_dd.pt"))
-    
-    print("Creating tagged-only subset...")
-    subset_tagged = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title"], delete_dvi=False)
-    torch.save(subset_tagged, os.path.join(args.out_dir, "divers_small.pt"))
-    
-    print("Creating deduplicated tagged-only subset...")
-    subset_tagged_non_dvi = drop_dvi_items(subset_tagged)
-    torch.save(subset_tagged_non_dvi, os.path.join(args.out_dir, "yvi_small.pt"))
-    
-    #print("Creating selected-tags-only subset...")
-    #selected_tags = ["live", 
-    #                 "cover", 
-    #                 "acoustic", 
-    #                 "instrumental", 
-    #                 "karaoke", "backingtrack",
-    #                 "reaction", "react", "reacts", "firsttimehearing", "firsttimelistening",
-    #                 "tutorial", "lesson", "howtoplay", "howtosing"
-    #                 "solo"]
-    #subset_tagged_selected = drop_non_tagged_items(dataset, tag_fields=["tags_yt_title", "tags_yt_description"], 
-    #                                               delete_dvi=False, selected_tags=selected_tags)
-    #torch.save(subset_tagged_selected, os.path.join(args.out_dir, "divers_tag_selected.pt"))
-    
-    #print("Creating deduplicated selected-tags-only subset...")
-    #subset_tagged_selected_non_dvi = drop_dvi_items(subset_tagged_selected)
-    #torch.save(subset_tagged_selected_non_dvi, os.path.join(args.out_dir, "yvi_tag_selected.pt"))
+    yvi = drop_dvi_items(dataset)
+    torch.save(yvi, os.path.join(args.out_dir, "yvi.pt"))
+    print("yvi:", len(yvi["info"]))
 
-    # print(f"Creating proportional downsample subset (fraction={args.fraction})...")
-    # subset_downsample = proportional_downsample(dataset, fraction=args.fraction, min_items_per_class=2, seed=42)
-    # sample_name = str(len(subset_downsample["info"]))[:3] + "k"
-    # torch.save(subset_downsample, os.path.join(args.out_dir, f"diverse{sample_name}.pt"))
+    tagged = drop_non_tagged_items(dataset)
+    torch.save(tagged, os.path.join(args.out_dir, "divers_small.pt"))
+    print("divers_small:", len(tagged["info"]))
 
-    # print(f"Creating proportional deduplicated downsample subset (fraction={args.fraction})...")
-    # subset_downsample = proportional_downsample(dataset, fraction=args.fraction, min_items_per_class=2, seed=42)
-    # sample_name = str(len(subset_downsample["info"]))[:3] + "k"
-    # torch.save(subset_downsample, os.path.join(args.out_dir, f"diverse{sample_name}.pt"))
-    
-    print("Done!")
+    yvi_small = drop_dvi_items(tagged)
+    torch.save(yvi_small, os.path.join(args.out_dir, "yvi_small.pt"))
+    print("yvi_small:", len(yvi_small["info"]))
+
+    print("Done.")
+
 
 if __name__ == "__main__":
     main()

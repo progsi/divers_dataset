@@ -88,6 +88,7 @@ Afterwards:
 ```
 python scripts/creation/match_tags_tempo.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt
 ```
+And to deduplicate, we use the [respective notebook](scripts/deduplication/deduplication.ipynb). 
 
 ### Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

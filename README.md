@@ -90,5 +90,11 @@ python scripts/creation/match_tags_tempo.py --input ../clews/cache/metadata-dvi2
 ```
 And to deduplicate, we use the [respective notebook](scripts/deduplication/deduplication.ipynb). 
 
+### Add sound event tags
+Required: A JSON file with YouTube-IDs mapping to the sound event lists. These are lists with 1s indicating clean music segments and 0s indicating a non-music segment (e.g. speech, noise, silence).
+
+```
+python scripts/creation/join_soundevent_inds.py data/final/ data/music-tagging-output.json -o /data/final_se/
+```
 ### Download
 Some tips regarding MP4 downloads are given in [*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset). The estimated time to download everything (when using 8 parallel downloads at a time), is around 12-18 days. 

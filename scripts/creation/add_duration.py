@@ -52,7 +52,7 @@ def get_duration(row, audio_dir):
     if not os.path.exists(audio_path):
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
     info = sf.info(audio_path)
-    return info.frames / info.samplerate
+    return round(info.frames / info.samplerate, 2)
 
 def add_duration(df, audio_dir, workers=None, print_every=50):
     """Add duration using threads with reliable progress reporting"""

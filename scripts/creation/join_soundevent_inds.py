@@ -56,8 +56,9 @@ def process_music_segments(df, segment_inds_path):
             return False
         if isinstance(x, list):
             return any(v != 0 for v in x)
+        if pd.isna(x):
+            return False
         return bool(x)
-
     df = df[df["music_segment_inds"].apply(valid_segments)].copy()
 
     # Remove singleton cliques (after filtering)

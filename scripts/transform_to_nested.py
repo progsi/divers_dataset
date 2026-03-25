@@ -12,8 +12,8 @@ FULL_COLS = [
     "artist",
     "title",
     "filename",
-    "samplerate",
-    "channels",
+    #"samplerate",
+    #"channels",
     "youtube_id",
     "dvi",
     "track_writer_names",
@@ -128,7 +128,8 @@ def main():
     base_name = os.path.splitext(os.path.basename(args.dataset_path))[0]
 
     # Full version
-    nested_full = df_to_nested_dict(df, keep_cols=FULL_COLS)
+    full_cols = FULL_COLS + ["duration"] if "duration" in df.columns else FULL_COLS
+    nested_full = df_to_nested_dict(df, keep_cols=full_cols)
     full_path = os.path.join(args.out_dir, f"{base_name}.json")
     save_json(nested_full, full_path)
 

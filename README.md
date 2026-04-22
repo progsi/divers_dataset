@@ -1,8 +1,6 @@
 # Discogs-VI-2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18017350.svg)](https://doi.org/10.5281/zenodo.18017350)
-
-**Note: Data is contained in the supplementary material of the paper submission. Additionally, [a sample](data/data_sample.json) and the [dataset documentation](data/README.md) is provided in this repository. The code for the experiments can be found here: https://anonymous.4open.science/r/divers_benchmark-A491**
+**Note: Data is contained in the supplementary material of the paper submission. Additionally, [a sample](data/data_sample.json) and the [dataset documentation](data/README.md) is provided in this repository. 
 
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *DiVers-Large*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.

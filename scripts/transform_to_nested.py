@@ -31,6 +31,7 @@ FULL_COLS = [
     "yt_upload_date",
     "yt_view_count",
     "tempo",
+    "music_segment_inds",
     "tags_yt_title",
     "cues_yt_title",
     "tags_yt_description",

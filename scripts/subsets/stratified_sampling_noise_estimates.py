@@ -196,12 +196,12 @@ def save_df_as_torch(df, out_path, split):
         idx: dict(zip(df.columns, row))
         for idx, row in zip(index, df.itertuples(index=False, name=None))
     }
-
-    split_dict = {split: df.groupby("clique")["version"].apply(list).to_dict()}
-
+    
+    remaining_splits = [s for s in ["train", "valid", "test"] if s != split]
+    split_dict = {s: {} for s in remaining_splits}
+    split_dict[split] = df.groupby("clique")["version"].apply(list).to_dict()
     torch.save({"info": info_dict, "split": split_dict}, out_path)
-    print(f"Saved: {out_path}")
-
+    print(f"Saved torch file to {out_path}")
 
 # -----------------------------
 # Args

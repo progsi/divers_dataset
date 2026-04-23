@@ -9,7 +9,7 @@ Discover our dataset in our [explorer app](https://divers.streamlit.app/).
 ![Explorer GUI](figures/explorer.png)
 
 ## Conda Environment
-- installation of the conda environment by running  `conda env create -f env.yaml`
+- installation of the conda environment by running  `conda env create -f env.yml`
 
 ## Dataset Creation
 ### Requirements
@@ -18,7 +18,7 @@ Discover our dataset in our [explorer app](https://divers.streamlit.app/).
 ### Extract titles from Discogs-VI-YT 
 First, please save the *DVI* dataset files in `data/dvi/`. To obtain one query (song title) per clique, we first create a new file. We use the cleaned song titles from *Discogs-VI-YT*.
 ```
-python scripts/creation/get_unique_titles.py data/dvi/Discogs-VI-YT-20240701.jsonl.jsonl data/aux/one_title_per_clique.json
+python scripts/creation/get_unique_titles.py data/dvi/Discogs-VI-YT-20240701.jsonl data/aux/one_title_per_clique.json
 ```
 ### Search on YouTube
 We now search for up to 500 results per clique, using the text query (song title).
@@ -45,10 +45,10 @@ python scripts/creation/filter_rank.py data/youtube data/filter/rank --max_index
 ```
 python scripts/creation/join_to_one.py data/youtube data --filter_dir data/filter
 ```
-This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not loose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
+This creates the files `metadata_filtered.jsonl` where only the kept videos after filtering are contained and each video is contained only once. To not lose the information related to the queries, we also generate `queries_filtered.json`, which maps the YouTube identifiers to the text queries where they occur and the respective result index.
 #### Filter by fuzzy matching
 ##### Method
-This step aims detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
+This step aims at detecting videos which are likely versions of the works in the seed dataset. For each song title and its video results, we match the respective song title and artist name by fuzzy matching.
 We also apply some pre-processing steps (see `string_processor.py`) which were also used to generate [MusicUGC-NER](https://github.com/progsi/YTUnCoverLLM/tree/main?tab=readme-ov-file).
 ```
 python scripts/creation/fuzzy_matching.py data/dvi/Discogs-VI-YT-20240701.jsonl data/aux/one_title_per_clique.json data/matched/full.csv
@@ -57,7 +57,7 @@ python scripts/creation/fuzzy_matching.py data/dvi/Discogs-VI-YT-20240701.jsonl 
 From the output file in `data/full.csv`, we analyze the matches with regards to pairs of attributes from *Discogs* and *YouTube* which are matched in the notebook `matching_analysis.ipynb`. Additionally, we split the data into four groups after thresholding the similarity at 80%:
 - *both*: *title* and *artist* are matched
 - *only_title*: the cleaned title from *Discogs-VI-YT* matches
-- *only_artist*: any artist is matched using the list of arists from *Discogs*
+- *only_artist*: any artist is matched using the list of artists from *Discogs*
 - *none*
 For the whole set, this information is written to `data/filtered_types.csv`. We additionally create a sample of 100 videos per group to check manually.
 
@@ -67,7 +67,7 @@ Manually checking the sample, we observed that *both* contains references to the
 
 ### Make splits
 In `make_splits.ipynb` we make two subsets. First, the full *both* dataset. We further create another filtered version were we filter some indicators of official music videos (e.g. *remastered* etc.). 
-The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which usable to train models. 
+The outputs are written to `data/dataset` and contain json files containing only the new versions as well as dataset files which contain versions of `Discogs-VI-YT` and the new versions which are usable to train models. 
 Afterwards, we create the splits, which creates `json` and `jsonl` files in a format like in *DVI*:
 ```
 python scripts/creation/make_splits2.py data/dataset/dvi_fm_filtered.jsonl data/discogs/ data/dataset/ --use-split-content

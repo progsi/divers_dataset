@@ -5,15 +5,14 @@ import argparse
 import pandas as pd
 import torch
 
-LIGHT_COLS = ["id", "artist", "title", "filename", 
-              "youtube_id", "dvi", "tags_yt_title"]
+
+LIGHT_COLS = ["id", "artist", "title", "youtube_id", "dvi", "tags_yt_title"]
+
 FULL_COLS = [
     "id",
     "artist",
     "title",
     "filename",
-    #"samplerate",
-    #"channels",
     "youtube_id",
     "dvi",
     "track_writer_names",
@@ -40,6 +39,7 @@ FULL_COLS = [
     "cues_yt_tags"
 ]
 
+# Load dataset
 def load_dataset(path):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dataset not found at {path}")
@@ -64,40 +64,63 @@ def load_dataset(path):
         info, split = meta
 
     df = pd.DataFrame.from_dict(info, orient="index")
+
     clique2split = inverse_split_dict(split)
     df["split"] = df["clique"].map(clique2split)
-    
+
     if "youtube_id" not in df.columns and "filename" in df.columns:
-        df["youtube_id"] = df.filename.apply(lambda x: x.split("/")[-1].split(".")[0])
-    
+        df["youtube_id"] = df.filename.apply(
+            lambda x: x.split("/")[-1].split(".")[0]
+        )
+
     df["dvi"] = ~df.apply(lambda x: x.youtube_id in x.version, axis=1)
+
     return df
 
+# Sparse encoding (0s are rare)
+def encode_zero_indices(binary_list):
+    if not isinstance(binary_list, list):
+        return binary_list
+    return [i for i, v in enumerate(binary_list) if v == 0]
+
+# Build nested dict
 def df_to_nested_dict(df, split_col="split", keep_cols=None):
     nested = {}
+
     for split, split_df in df.groupby(split_col):
         nested[split] = {}
+
         for clique, clique_df in split_df.groupby("clique"):
             nested[split][clique] = {}
+
             for _, row in clique_df.iterrows():
                 version = row["version"]
+
                 data = row.drop([split_col, "clique", "version"])
+
                 if keep_cols is not None:
                     data = data[keep_cols]
-                nested[split][clique][version] = data.to_dict()
+
+                d = data.to_dict()
+
+                # compress music_segment_inds (sparse 0 encoding)
+                if "music_segment_inds" in d:
+                    d["noise_inds_sparse"] = encode_zero_indices(d["music_segment_inds"])
+                    del d["music_segment_inds"]
+                    
+                nested[split][clique][version] = d
+
     return nested
 
+
 def make_json_serializable(obj):
-    """
-    Recursively convert values to JSON-serializable types.
-    """
     if isinstance(obj, dict):
         return {k: make_json_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [make_json_serializable(v) for v in obj]
     elif isinstance(obj, (int, float, str, bool)) or obj is None:
         return obj
-    # handle numpy types
+
     try:
         import numpy as np
         if isinstance(obj, (np.integer, np.int64, np.int32)):
@@ -108,19 +131,25 @@ def make_json_serializable(obj):
             return obj.tolist()
     except ImportError:
         pass
-    # fallback
-    return str(obj)
+
+    return obj
+
 
 def save_json(nested_dict, out_path):
     serializable_dict = make_json_serializable(nested_dict)
+
     with open(out_path, "w") as f:
         json.dump(serializable_dict, f, indent=2)
+
     print(f"Saved JSON: {out_path} (splits: {list(nested_dict.keys())})")
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Transform dataset to nested dict (JSON output)")
-    parser.add_argument("dataset_path", type=str, help="Path to input dataset (.pt or .json)")
-    parser.add_argument("out_dir", type=str, help="Directory to save nested dicts")
+    parser = argparse.ArgumentParser(
+        description="Transform dataset to nested dict (JSON output)"
+    )
+    parser.add_argument("dataset_path", type=str)
+    parser.add_argument("out_dir", type=str)
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -128,16 +157,19 @@ def main():
     df = load_dataset(args.dataset_path)
     base_name = os.path.splitext(os.path.basename(args.dataset_path))[0]
 
-    # Full version
+    # Full
     full_cols = FULL_COLS + ["duration"] if "duration" in df.columns else FULL_COLS
     nested_full = df_to_nested_dict(df, keep_cols=full_cols)
+
     full_path = os.path.join(args.out_dir, f"{base_name}.json")
     save_json(nested_full, full_path)
 
-    # Light version
+    # Light
     nested_light = df_to_nested_dict(df, keep_cols=LIGHT_COLS)
+
     light_path = os.path.join(args.out_dir, f"{base_name}_light.json")
     save_json(nested_light, light_path)
+
 
 if __name__ == "__main__":
     main()

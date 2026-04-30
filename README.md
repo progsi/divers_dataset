@@ -81,13 +81,13 @@ This creates a torch file called `divers.pt` in the desired format.
 #### Add rich metadata to the file
 Given this torch file and the YouTube crawl and our Discogs metadata file, we can run:
 ```
-python scripts/creation/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/metadata-dvi2fm.pt --njobs 32
+python scripts/creation/collect_metadata.py --audio-dir /data/audio/ --dvi-file ../discogs-vi-2/data/dvi2/dataset/divers1m/dvi_fm.jsonl --meta-file ../clews/cache/divers.pt --njobs 32
 ```
 
-Afterwards:
+Afterwards we match auxiliary data (e.g., tags):
 
 ```
-python scripts/creation/match_tags_tempo.py --input ../clews/cache/metadata-dvi2fm.pt --output data/final/metadata-divers1m.pt
+python scripts/creation/match_tags_tempo.py --input ../clews/cache/divers.pt --output data/final/divers.pt
 ```
 And to deduplicate, we use the [respective notebook](scripts/deduplication/deduplication.ipynb). 
 

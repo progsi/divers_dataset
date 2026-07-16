@@ -1,10 +1,10 @@
-# Discogs-VI-2
+# Diverse Versions Dataset
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18017350.svg)](https://doi.org/10.5281/zenodo.18017350)
 
-A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
-- *DiVers-Large*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.
-- *DiVers-Small*: A subset of *DiVers-Large*, restricted to segments where music tags appear in the YouTube video title.
+A suite of two datasets, based on the ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
+- *Diverse Versions Large (DiVers-L)*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.
+- *Diverse Versions Small (DiVers-S)*: A subset of *DiVers-L*, restricted to segments where music tags appear in the YouTube video title.
 
 ## Explorer
 Discover our dataset in our [explorer app](https://divers.streamlit.app/).

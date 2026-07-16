@@ -1,6 +1,6 @@
 # Discogs-VI-2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20428659.svg)](https://doi.org/10.5281/zenodo.20428659)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18017350.svg)](https://doi.org/10.5281/zenodo.18017350)
 
 A suite of two datasets, based on the *DVI* ([*Discogs-VI-YT*](https://github.com/MTG/discogs-vi-dataset)) dataset. Namely:
 - *DiVers-Large*: contains versions found on YouTube without being constrained to listings on *Discogs* or *Secondhandsongs*.
